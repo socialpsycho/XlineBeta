@@ -59,6 +59,9 @@ document.querySelector('#profileAbout').onclick=()=>alert('XLINE — игров�
 document.querySelector('#navGames').onclick=()=>{profileModal.classList.remove('open');document.querySelector('#demoGamePanel').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'})};
 document.querySelector('#navHistory').onclick=showDemoHistory;
 
+const telegramWebApp=window.Telegram&&window.Telegram.WebApp;
+if(telegramWebApp){telegramWebApp.ready();telegramWebApp.expand();}
+
 // Set this to the public HTTPS URL of the Amvera API service before publishing.
 window.XLINE_API_URL = "https://xlinebeta-ozix.mia0.amvera.tech";
 const API_BASE=(window.XLINE_API_URL||document.querySelector('meta[name="xline-api-url"]')?.content||'').replace(/\/$/,'');
@@ -67,11 +70,32 @@ const demoBody=document.querySelector('#demoGameBody');
 const demoWarning=document.querySelector('#demoApiWarning');
 let demoSession=null,demoGame=null,demoState=null,rocketTimer=null,actionBusy=false;
 const gameNames={mines:'Mines',tower:'Tower',rocket:'Rocket',slots:'Slots',blackjack:'Blackjack'};
+function getTelegramInitData(){
+ const tg=window.Telegram&&window.Telegram.WebApp;
+ if(tg&&typeof tg.initData==='string'&&tg.initData.length)return tg.initData;
+ // Telegram may place the signed launch payload in the URL fragment.
+ for(const raw of [window.location.hash,window.location.search]){
+  if(!raw)continue;
+  const params=new URLSearchParams(raw.replace(/^[#?]/,''));
+  const value=params.get('tgWebAppData');
+  if(value)return value;
+ }
+ return '';
+}
+async function requireTelegramInitData(){
+ for(let attempt=0;attempt<20;attempt++){
+  const initData=getTelegramInitData();
+  if(initData)return initData;
+  await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ const tg=window.Telegram&&window.Telegram.WebApp;
+ const sdkState=!window.Telegram?'SDK не загрузился':!tg?'WebApp не инициализирован':'SDK загружен, но Telegram не передал подпись запуска';
+ throw new Error(sdkState+'. Закрой XLINE, снова отправь /start и открой через кнопку «🚀 Открыть XLINE» под сообщением бота.');
+}
 async function demoApi(path,method='GET',body){
  if(!API_BASE)throw new Error('Не задан адрес API. Нужен публичный HTTPS-адрес сервера бота в настройке XLINE_API_URL.');
- const tg=window.Telegram&&window.Telegram.WebApp;
- if(!tg||!tg.initData)throw new Error('Открой Mini App через Telegram, чтобы подтвердить аккаунт.');
- const response=await fetch(API_BASE+path,{method,headers:{'Content-Type':'application/json','X-Telegram-Init-Data':tg.initData},body:body?JSON.stringify(body):undefined});
+ const initData=await requireTelegramInitData();
+ const response=await fetch(API_BASE+path,{method,headers:{'Content-Type':'application/json','X-Telegram-Init-Data':initData},body:body?JSON.stringify(body):undefined});
  const data=await response.json().catch(()=>({error:'Ошибка ответа сервера'}));
  if(!response.ok)throw new Error(data.error||'Ошибка API');
  return data;
