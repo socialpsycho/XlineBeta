@@ -152,6 +152,8 @@ document.querySelector('#profileHelp').onclick=()=>alert('Поддержка XLI
 document.querySelector('#profileAbout').onclick=()=>alert('XLINE — цифровая платформа. Оплата товаров выполняется через Telegram Stars.');
 
 
+// Set this to the public HTTPS URL of the Amvera API service before publishing.
+window.XLINE_API_URL = window.XLINE_API_URL || "";
 const API_BASE=(window.XLINE_API_URL||document.querySelector('meta[name="xline-api-url"]')?.content||'').replace(/\/$/,'');
 const demoPanel=document.querySelector('#demoGamePanel');
 const demoBody=document.querySelector('#demoGameBody');
