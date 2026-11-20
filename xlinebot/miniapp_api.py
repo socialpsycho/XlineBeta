@@ -328,7 +328,7 @@ def _action(db, user_id, payload):
         if action == "cashout":
             if not state["opened"]:
                 raise web.HTTPBadRequest(text="Сначала открой безопасную клетку.")
-            payout = round(state["bet"] * state["multiplier"])
+            payout = round(state["bet"] * state["multiplier"], 2)
             balance = _settle(db, user_id, session, "cashout", payout,
                               {"mines": state["mines"], "opened": state["opened"]})
             return {"finished": True, "result": "cashout", "mines": state["mines"],
@@ -348,7 +348,7 @@ def _action(db, user_id, payload):
             state["opened"].append(cell)
             state["multiplier"] *= state["base"]
             if len(state["opened"]) == state["levels"]:
-                payout = round(state["bet"] * state["multiplier"])
+                payout = round(state["bet"] * state["multiplier"], 2)
                 balance = _settle(db, user_id, session, "win", payout,
                                   {"bombs": state["bombs"], "opened": state["opened"]})
                 return {"finished": True, "result": "top", "bombs": state["bombs"],
@@ -368,9 +368,9 @@ def _action(db, user_id, payload):
             elapsed_ticks = max(0, int(time.time() - state["started_at"]))
             current = round(1.0 + 0.12 * elapsed_ticks, 2)
             previous = round(1.0 + 0.12 * max(0, elapsed_ticks - 1), 2)
-            if state["crash_at"] <= previous:
-                balance = _settle(db, user_id, session, "loss", 0, {"crash_at": previous})
-                return {"finished": True, "result": "crash", "crash_at": previous,
+            if state["crash_at"] <= current:
+                balance = _settle(db, user_id, session, "loss", 0, {"crash_at": state["crash_at"]})
+                return {"finished": True, "result": "crash", "crash_at": state["crash_at"],
                         "balance": balance, "payout": 0}
             if action == "cashout":
                 payout = round(state["bet"] * current, 2)
