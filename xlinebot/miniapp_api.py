@@ -416,6 +416,9 @@ def create_app():
             raise web.HTTPUnauthorized(text="Открой приложение через Telegram.")
         return int(user["id"]), user
 
+    async def health(request):
+        return web.json_response({"status": "ok", "service": "xline-miniapp-api"})
+
     async def me(request):
         user_id, user = auth(request)
         with connection() as db:
@@ -465,6 +468,7 @@ def create_app():
             balance = _settle(db, user_id, session, "cancelled", 0, {"cancelled": True})
         return web.json_response({"finished": True, "balance": balance, "payout": 0})
 
+    app.router.add_get("/health", health)
     app.router.add_get("/api/me", me)
     app.router.add_get("/api/history", history)
     app.router.add_post("/api/game/start", start)
