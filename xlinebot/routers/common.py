@@ -4,7 +4,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup, LabeledPrice, PreCheckoutQuery, Message
+from aiogram.types import ReplyKeyboardMarkup, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
 from aiocryptopay import AioCryptoPay, Networks
 from aiogram.exceptions import TelegramBadRequest
 
@@ -15,7 +15,7 @@ from ..db import (
     register_user, is_withdraw_blocked, has_real_deposit
 )
 from ..keyboards import main_menu, play_menu, sub_menu
-from ..config import ADMIN_ID, LOG_CHAT_ID, CRYPTOBOT_TOKEN, SUPPORT_CHAT_ID
+from ..config import ADMIN_ID, LOG_CHAT_ID, CRYPTOBOT_TOKEN, SUPPORT_CHAT_ID, WEBAPP_URL
 from ..states import PromoStates, WalletStates, SupportStates
 from ..utils import check_sub
 
@@ -37,12 +37,13 @@ def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
     kb.button(text="🎰 Играть")
     kb.button(text="💼 Кошелёк")
     kb.button(text="👤 Профиль")
+    kb.button(text="🚀 XLINE Mini App", web_app=WebAppInfo(url=WEBAPP_URL))
     
     if user_id == ADMIN_ID:
         kb.button(text="👑 Админка")
-        kb.adjust(2, 2)
+        kb.adjust(2, 2, 1)
     else:
-        kb.adjust(2, 1)
+        kb.adjust(2, 2)
         
     return kb.as_markup(resize_keyboard=True, input_field_placeholder="Выбери действие...")
 
