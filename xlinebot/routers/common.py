@@ -3,6 +3,10 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
+import hashlib
+import secrets
+import time
+from urllib.parse import urlencode
 
 from ..db import (
     get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
@@ -49,13 +53,11 @@ async def start(message: types.Message, state: FSMContext):
             reply_markup=sub_menu()
         )
 
-    # Remove the legacy reply-keyboard Web App button: Telegram does not provide
-    # signed initData for Mini Apps launched from reply-keyboard buttons.
-    await message.answer("Старую кнопку запуска отключил. Используй кнопку под следующим сообщением.", reply_markup=ReplyKeyboardRemove())
+    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
     launch_kb = InlineKeyboardBuilder()
-    launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
+    launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
     await message.answer(
-        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми кнопку ниже, чтобы открыть приложение.",
+        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми кнопку ниже — я подтвержу аккаунт и выдам персональную ссылку для входа.",
         reply_markup=launch_kb.as_markup()
     )
 
@@ -68,10 +70,33 @@ async def check_sub_callback(call: types.CallbackQuery):
         )
         await call.message.answer(" ", reply_markup=ReplyKeyboardRemove())
         launch_kb = InlineKeyboardBuilder()
-        launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
-        await call.message.answer("🚀 XLINE готов к запуску.", reply_markup=launch_kb.as_markup())
+        launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
+        await call.message.answer("🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.", reply_markup=launch_kb.as_markup())
     else:
         await call.answer("❌ Ты всё ещё не подписан на канал!", show_alert=True)
+
+
+@router.callback_query(F.data == "xline_launch")
+async def xline_launch_callback(call: types.CallbackQuery):
+    # The callback originates from Telegram and binds the launch token to this user.
+    from ..db import connection
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    now = int(time.time())
+    with connection() as db:
+        db.execute(
+            "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
+            (token_hash, call.from_user.id, now + 180),
+        )
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    launch_url = WEBAPP_URL + separator + urlencode({"launch_token": raw_token})
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=launch_url))
+    await call.message.answer(
+        "✅ Аккаунт подтверждён. Ссылка действует 3 минуты и используется один раз.",
+        reply_markup=kb.as_markup(),
+    )
+    await call.answer("Ссылка для безопасного входа готова.")
 
 @router.message(F.text == "💼 Кошелёк")
 async def reply_wallet(message: types.Message):
