@@ -79,41 +79,26 @@ async def admin_stats_menu(call: types.CallbackQuery):
     kb.button(text="📈 Общая статистика", callback_data="admin_stats")
     kb.button(text="📥 История пополнений", callback_data="admin_hist_deposits")
     kb.button(text="📤 История выводов", callback_data="admin_hist_withdraws")
-    kb.button(text="🕵️ Крупные выигрыши", callback_data="admin_big_wins")
     kb.button(text="🔙 Назад", callback_data="admin_panel")
-    kb.adjust(1, 1, 1, 1, 1)
+    kb.adjust(1, 1, 1, 1)
     
     await safe_edit(call.message, text, reply_markup=kb.as_markup())
     await call.answer()
 
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(call: types.CallbackQuery):
-    if not is_admin(call.from_user.id): return
-    
+    if not is_admin(call.from_user.id):
+        return
     with connection() as db:
         users_count = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         total_balance = db.execute("SELECT SUM(balance) FROM users").fetchone()[0] or 0.0
-        total_wagered = db.execute("SELECT SUM(wagered) FROM users").fetchone()[0] or 0.0
-        total_payouts = db.execute("SELECT SUM(payout) FROM game_history WHERE result IN ('win', 'cashout')").fetchone()[0] or 0.0
-
-    profit = total_wagered - total_payouts
-    rtp = (total_payouts / total_wagered * 100) if total_wagered > 0 else 0
-    
     text = (
-        f"📊 <b>Общая статистика казино</b>\n\n"
-        f"👥 Игроков: {users_count}\n"
-        f"💰 Баланс всех юзеров: {total_balance:.2f} $\n"
-        f"📥 Оборот (всего поставлено): {total_wagered:.2f} $\n"
-        f"📤 Выплачено (выигрыши): {total_payouts:.2f} $\n"
-        f"💵 <b>Профит бота: {profit:.2f} $</b>\n"
-        f"📈 <b>Фактический RTP: {rtp:.2f}%</b>"
+        f"📊 <b>Статистика XLINE</b>\n\n"
+        f"👥 Пользователей: {users_count}\n"
+        f"💼 Суммарный баланс аккаунтов: {total_balance:.2f} $"
     )
-    
     kb = InlineKeyboardBuilder()
-    kb.button(text="🧹 Сброс статы", callback_data="admin_confirm_reset")
     kb.button(text="🔙 Назад", callback_data="admin_stats_menu")
-    kb.adjust(1, 1)
-    
     await safe_edit(call.message, text, reply_markup=kb.as_markup())
     await call.answer()
 
@@ -148,24 +133,6 @@ async def admin_hist_withdraws(call: types.CallbackQuery):
             status_text = "✅ Выплачено" if status == "paid" else ("❌ Отклонено" if status == "rejected" else "⏳ В обработке")
             method_text = "USDT" if method == "crypto" else "Звезды"
             text += f"🆔 Заявка <code>{w_id}</code>\n👤 <code>{uid}</code> | <b>{amount:.2f} $</b> ({method_text})\n<i>{status_text} | {date_short}</i>\n\n"
-            
-    kb = InlineKeyboardBuilder().button(text="🔙 Назад", callback_data="admin_stats_menu")
-    await safe_edit(call.message, text, reply_markup=kb.as_markup())
-    await call.answer()
-
-@router.callback_query(F.data == "admin_big_wins")
-async def admin_big_wins(call: types.CallbackQuery):
-    if not is_admin(call.from_user.id): return
-    
-    with connection() as db:
-        rows = db.execute("SELECT user_id, game, payout FROM game_history WHERE payout > 10.0 ORDER BY id DESC LIMIT 10").fetchall()
-    
-    if not rows:
-        text = "🕵️ Крупных выигрышей (выше 10.00 $) пока нет."
-    else:
-        text = "🕵️ <b>Последние крупные выигрыши:</b>\n\n"
-        for r in rows:
-            text += f"👤 <code>{r[0]}</code> | {r[1].upper()} | {r[2]:.2f} $\n"
             
     kb = InlineKeyboardBuilder().button(text="🔙 Назад", callback_data="admin_stats_menu")
     await safe_edit(call.message, text, reply_markup=kb.as_markup())
