@@ -71,7 +71,7 @@ async def main():
     runner = web.AppRunner(api_app)
     await runner.setup()
     host = os.getenv("MINIAPP_API_HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", os.getenv("MINIAPP_API_PORT", "8080")))
+    port = int(os.getenv("PORT", os.getenv("MINIAPP_API_PORT", "80")))
     site = web.TCPSite(runner, host, port)
     await site.start()
     logging.info("XLINE Mini App API listening on %s:%s", host, port)
