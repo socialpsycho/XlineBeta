@@ -430,7 +430,7 @@ async def cors_middleware(request, handler):
     else:
         response = await handler(request)
     response.headers["Access-Control-Allow-Origin"] = os.getenv("MINIAPP_CORS_ORIGIN", "*")
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Telegram-Init-Data"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Telegram-Init-Data, X-XLINE-Session"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response.headers["Vary"] = "Origin"
     return response
