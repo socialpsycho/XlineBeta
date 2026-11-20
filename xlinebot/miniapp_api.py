@@ -45,14 +45,16 @@ def init_demo_schema():
             updated_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS miniapp_demo_sessions (
-            user_id INTEGER PRIMARY KEY,
-            session_id TEXT NOT NULL UNIQUE,
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
             game TEXT NOT NULL,
             state_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'active',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
+        CREATE INDEX IF NOT EXISTS idx_demo_active_session
+            ON miniapp_demo_sessions(user_id, status);
         CREATE TABLE IF NOT EXISTS miniapp_demo_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
