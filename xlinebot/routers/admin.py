@@ -146,8 +146,7 @@ async def admin_reset_confirm(call: types.CallbackQuery):
         "⚠️ <b>ВНИМАНИЕ!</b>\n\n"
         "Ты собираешься полностью сбросить:\n"
         "• Балансы всех игроков (до 0.10 $)\n"
-        "• Всю историю игр\n"
-        "• WinRate, оборот, рекорды\n\n"
+        "• Баланс аккаунтов\n\n"
         "Это действие <b>необратимо</b>. Продолжить?"
     )
     kb = InlineKeyboardBuilder()
@@ -162,11 +161,9 @@ async def admin_do_reset(call: types.CallbackQuery):
     if not is_admin(call.from_user.id): return
     
     with connection() as db:
-        db.execute("UPDATE users SET balance=0.10, wins=0, losses=0, wagered=0")
-        db.execute("DELETE FROM game_history")
-        db.execute("DELETE FROM sqlite_sequence WHERE name='game_history'")
+        db.execute("UPDATE users SET balance=0.10")
         
-    await safe_edit(call.message, "✅ Полный вайп статистики завершен. Балансы установлены по 0.10 $.", reply_markup=admin_back_kb())
+    await safe_edit(call.message, "✅ Балансы аккаунтов обновлены.", reply_markup=admin_back_kb())
     await call.answer("База сброшена!", show_alert=True)
 
 # --- МЕНЮ ПОЛЬЗОВАТЕЛЕЙ ---
@@ -213,29 +210,21 @@ async def admin_show_info(call: types.CallbackQuery):
     if not is_admin(call.from_user.id): return
     uid = int(call.data.split("_")[2])
     
-    balance, wins, losses, wagered, last_bet, last_diff, status = get_user(uid)
+    balance, _, _, _, _, _, status = get_user(uid)
     reason = get_ban_reason(uid)
-    total = wins + losses
-    
     with connection() as db:
         row = db.execute("SELECT username FROM users WHERE user_id=?", (uid,)).fetchone()
         username = row[0] if row else ""
-    
     status_text = "🟢 Активен" if status == "active" else ("🧊 Заморожен" if status == "frozen" else "🔴 Забанен")
-    if reason: status_text += f" ({reason})"
-    
+    if reason:
+        status_text += f" ({reason})"
     w_blocked = is_withdraw_blocked(uid)
     w_status = "🔴 Заблокирован" if w_blocked else "🟢 Разрешен"
-    
     text = (
-        f"👤 <b>Инфо о юзере <code>{uid}</code></b>\n"
+        f"👤 <b>Аккаунт <code>{uid}</code></b>\n"
         f"🔗 Юзернейм: @{username or 'нет'}\n\n"
         f"📊 Статус: <b>{status_text}</b>\n"
-        f"💰 Баланс: {balance:.2f} $\n"
-        f"📈 WinRate: {wins/total*100 if total else 0:.1f}%\n"
-        f"🎮 Игр: {total} (W: {wins}, L: {losses})\n"
-        f"💸 Оборот: {wagered:.2f} $\n"
-        f"🗼 Сложность башни: {last_diff}\n"
+        f"💼 Баланс: {balance:.2f} $\n"
         f"📤 Вывод: <b>{w_status}</b>"
     )
     
@@ -460,7 +449,6 @@ async def admin_manage_menu(call: types.CallbackQuery):
     kb = InlineKeyboardBuilder()
     kb.button(text="📢 Рассылка", callback_data="admin_broadcast")
     kb.button(text="🎁 Создать промокод", callback_data="admin_promo")
-    kb.button(text="🛠 Тех. работы", callback_data="admin_maintenance")
     kb.button(text="🧹 Очистка истории БД", callback_data="admin_clear_history")
     kb.button(text="🔙 Назад", callback_data="admin_panel")
     kb.adjust(1, 1, 1, 1, 1)
@@ -555,7 +543,7 @@ async def admin_clear_history(call: types.CallbackQuery):
         "• Все заявки на вывод\n"
         "• Всю историю кошелька (пополнения/выводы)\n"
         "• Все промокоды\n\n"
-        "Балансы игроков и статистика игр <b>НЕ</b> тронутся.\n\n"
+        "Балансы аккаунтов не изменятся.\n\n"
         "Продолжить?"
     )
     kb = InlineKeyboardBuilder()
@@ -721,24 +709,3 @@ async def close_ticket_reason(message: types.Message, state: FSMContext):
         
     await message.answer(f"✅ Тикет юзера <code>{target_uid}</code> закрыт с причиной.", reply_markup=admin_back_kb())
 
-# --- ТЕХ. РАБОТЫ ---
-@router.callback_query(F.data == "admin_maintenance")
-async def admin_toggle_maintenance(call: types.CallbackQuery):
-    if not is_admin(call.from_user.id): return
-    
-    current = is_maintenance()
-    new_status = not current
-    set_maintenance(new_status)
-    
-    status_text = "🛑 ВКЛЮЧЕНЫ (Игры заблокированы)" if new_status else "🟢 ВЫКЛЮЧЕНЫ (Игры доступны)"
-    
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🔙 Назад", callback_data="admin_manage_menu")
-    
-    await safe_edit(call.message, 
-        f"🛠 <b>Режим тех. работ</b>\n\n"
-        f"Текущий статус: <b>{status_text}</b>\n\n"
-        f"При включении игроки не смогут делать ставки.", 
-        reply_markup=kb.as_markup()
-    )
-    await call.answer(f"Тех. работы: {'ВКЛ' if new_status else 'ВЫКЛ'}")
