@@ -11,6 +11,7 @@ import os
 import random
 import time
 import uuid
+import secrets
 from datetime import datetime, timezone
 
 from aiohttp import web
@@ -67,6 +68,17 @@ def init_demo_schema():
         );
         CREATE INDEX IF NOT EXISTS idx_demo_history_user
             ON miniapp_demo_history(user_id, id DESC);
+        CREATE TABLE IF NOT EXISTS miniapp_launch_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            used_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS miniapp_sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        );
         """)
 
         # Upgrade an early demo schema without discarding a saved active round.
@@ -440,13 +452,49 @@ def create_app():
     init_demo_schema()
 
     def auth(request):
+        # Prefer Telegram-signed initData. The short-lived session is a secure fallback
+        # minted only after an authenticated Telegram bot callback click.
         user = verify_init_data(request.headers.get("X-Telegram-Init-Data", ""))
-        if not user:
-            raise web.HTTPUnauthorized(text="Открой приложение через Telegram.")
-        return int(user["id"]), user
+        if user:
+            return int(user["id"]), user
+        session_token = request.headers.get("X-XLINE-Session", "")
+        if session_token:
+            token_hash = hashlib.sha256(session_token.encode()).hexdigest()
+            with connection() as db:
+                row = db.execute(
+                    "SELECT user_id FROM miniapp_sessions WHERE token_hash=? AND expires_at>?",
+                    (token_hash, int(time.time())),
+                ).fetchone()
+            if row:
+                return int(row["user_id"]), {"id": int(row["user_id"])}
+        raise web.HTTPUnauthorized(text="Не удалось подтвердить вход. Запусти XLINE через кнопку в боте.")
 
     async def health(request):
         return web.json_response({"status": "ok", "service": "xline-miniapp-api"})
+
+    async def exchange_launch_token(request):
+        payload = await request.json()
+        raw_token = str(payload.get("launch_token", ""))
+        if len(raw_token) < 32 or len(raw_token) > 256:
+            raise web.HTTPUnauthorized(text="Ссылка входа недействительна или устарела.")
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        now = int(time.time())
+        session_token = secrets.token_urlsafe(48)
+        session_hash = hashlib.sha256(session_token.encode()).hexdigest()
+        with connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT user_id FROM miniapp_launch_tokens WHERE token_hash=? AND expires_at>? AND used_at IS NULL",
+                (token_hash, now),
+            ).fetchone()
+            if not row:
+                raise web.HTTPUnauthorized(text="Ссылка входа уже использована или истекла. Нажми /start в боте.")
+            db.execute("UPDATE miniapp_launch_tokens SET used_at=? WHERE token_hash=? AND used_at IS NULL", (now, token_hash))
+            db.execute(
+                "INSERT INTO miniapp_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)",
+                (session_hash, int(row["user_id"]), now + 43200),
+            )
+        return web.json_response({"session_token": session_token, "expires_in": 43200})
 
     async def me(request):
         user_id, user = auth(request)
@@ -498,6 +546,7 @@ def create_app():
         return web.json_response({"finished": True, "balance": balance, "payout": 0})
 
     app.router.add_get("/health", health)
+    app.router.add_post("/api/auth/exchange", exchange_launch_token)
     app.router.add_get("/api/me", me)
     app.router.add_get("/api/history", history)
     app.router.add_post("/api/game/start", start)
