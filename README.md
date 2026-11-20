@@ -35,7 +35,7 @@ Available endpoints:
 
 ## Demo game mode
 - Every player receives a separate starting balance of 1,000 virtual points.
-- Bets are integer virtual points; no deposits, withdrawals, crypto payments, cash prizes, or conversion to money are enabled.
+- Bets use virtual points (minimum 0.10); no deposits, withdrawals, crypto payments, cash prizes, or conversion to money are enabled.
 - Demo points are stored in separate \`miniapp_demo_*\` tables. Existing monetary balances, withdrawals, and transaction history are not used or modified by the demo games.
 - Game state is stored server-side in SQLite, so active rounds survive a bot process restart.
 - Mines retains the 5×5 board, 5–24 mine selection, safe-cell probability multiplier, and cashout.
