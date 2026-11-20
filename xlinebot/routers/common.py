@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
+from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
 
 from ..db import (
     get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
@@ -49,28 +49,28 @@ async def start(message: types.Message, state: FSMContext):
             reply_markup=sub_menu()
         )
 
+    # Remove the legacy reply-keyboard Web App button: Telegram does not provide
+    # signed initData for Mini Apps launched from reply-keyboard buttons.
+    await message.answer("Старую кнопку запуска отключил. Используй кнопку под следующим сообщением.")
+    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
     launch_kb = InlineKeyboardBuilder()
     launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
     await message.answer(
         f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми кнопку ниже, чтобы открыть приложение.",
         reply_markup=launch_kb.as_markup()
     )
-    await message.answer(
-        "Можно также открыть XLINE через кнопку внизу экрана.",
-        reply_markup=main_reply_menu(uid)
-    )
 
 @router.callback_query(F.data == "check_sub")
 async def check_sub_callback(call: types.CallbackQuery):
     if await check_sub(call.bot, call.from_user.id):
         await call.message.edit_text(
-            "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой «🚀 Открыть XLINE» внизу.",
+            "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой под следующим сообщением.",
             parse_mode="HTML"
         )
-        await call.message.answer(
-            "🚀 XLINE готов к запуску.",
-            reply_markup=main_reply_menu(call.from_user.id)
-        )
+        await call.message.answer(" ", reply_markup=ReplyKeyboardRemove())
+        launch_kb = InlineKeyboardBuilder()
+        launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
+        await call.message.answer("🚀 XLINE готов к запуску.", reply_markup=launch_kb.as_markup())
     else:
         await call.answer("❌ Ты всё ещё не подписан на канал!", show_alert=True)
 
