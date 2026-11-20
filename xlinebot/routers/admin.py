@@ -8,7 +8,7 @@ from ..db import (
     get_user, add_balance, deduct_balance, get_all_users, 
     set_user_status, get_ban_reason, connection, create_promo,
     approve_withdrawal, reject_withdrawal, get_ticket_user, close_ticket_db,
-    is_maintenance, set_maintenance, clear_history_and_promos,
+    clear_history_and_promos,
     is_withdraw_blocked, set_withdraw_block, delete_user,
     get_all_deposits, get_all_withdrawals
 )
@@ -138,35 +138,6 @@ async def admin_hist_withdraws(call: types.CallbackQuery):
     await safe_edit(call.message, text, reply_markup=kb.as_markup())
     await call.answer()
 
-@router.callback_query(F.data == "admin_confirm_reset")
-async def admin_reset_confirm(call: types.CallbackQuery):
-    if not is_admin(call.from_user.id): return
-    
-    text = (
-        "⚠️ <b>ВНИМАНИЕ!</b>\n\n"
-        "Ты собираешься полностью сбросить:\n"
-        "• Балансы всех игроков (до 0.10 $)\n"
-        "• Баланс аккаунтов\n\n"
-        "Это действие <b>необратимо</b>. Продолжить?"
-    )
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🔥 ДА, СБРОСИТЬ ВСЁ", callback_data="admin_do_reset")
-    kb.button(text="🔙 Отмена", callback_data="admin_stats")
-    kb.adjust(1, 1)
-    await safe_edit(call.message, text, reply_markup=kb.as_markup())
-    await call.answer()
-
-@router.callback_query(F.data == "admin_do_reset")
-async def admin_do_reset(call: types.CallbackQuery):
-    if not is_admin(call.from_user.id): return
-    
-    with connection() as db:
-        db.execute("UPDATE users SET balance=0.10")
-        
-    await safe_edit(call.message, "✅ Балансы аккаунтов обновлены.", reply_markup=admin_back_kb())
-    await call.answer("База сброшена!", show_alert=True)
-
-# --- МЕНЮ ПОЛЬЗОВАТЕЛЕЙ ---
 @router.callback_query(F.data == "admin_users_menu")
 async def admin_users_menu(call: types.CallbackQuery):
     if not is_admin(call.from_user.id): return
