@@ -20,7 +20,6 @@ webapp_keyboard = InlineKeyboardMarkup(
 async def open_miniapp(message: Message):
     await message.answer(
         "🚀 XLINE Mini App\n\n"
-        "Это отдельная бесплатная демоверсия. Очки XP не покупаются, "
-        "не передаются и не выводятся.",
+        "Управляй профилем, кошельком и цифровыми товарами XLINE.",
         reply_markup=webapp_keyboard,
     )
