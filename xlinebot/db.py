@@ -81,6 +81,19 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS star_purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            product_title TEXT NOT NULL,
+            stars INTEGER NOT NULL,
+            telegram_charge_id TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_star_purchases_user
+            ON star_purchases(user_id, id DESC);
         """)
         
         for col, definition in [
@@ -347,3 +360,31 @@ def get_all_withdrawals(limit: int = 10) -> list:
             "ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [tuple(r) for r in rows]
+
+
+# --- TELEGRAM STARS: DIGITAL GOODS ONLY ---
+def record_star_purchase(user_id: int, product_id: str, product_title: str,
+                         stars: int, telegram_charge_id: str) -> bool:
+    """Store a verified digital-goods purchase once; never credits a cash/XP balance."""
+    with connection() as db:
+        try:
+            db.execute(
+                "INSERT INTO star_purchases "
+                "(user_id, product_id, product_title, stars, telegram_charge_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, product_id, product_title, stars, telegram_charge_id,
+                 datetime.now(timezone.utc).isoformat())
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+def get_star_purchases(user_id: int, limit: int = 10) -> list:
+    with connection() as db:
+        rows = db.execute(
+            "SELECT product_title, stars, created_at FROM star_purchases "
+            "WHERE user_id=? ORDER BY id DESC LIMIT ?",
+            (user_id, limit)
+        ).fetchall()
+        return [tuple(row) for row in rows]
