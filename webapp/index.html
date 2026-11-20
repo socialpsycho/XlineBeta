@@ -182,7 +182,7 @@ function openDemoPanel(game){
  demoBody.innerHTML='<div class="game-controls"><label style="flex:1">Ставка в очках<input id="demoBet" type="number" min="0.10" max="10000" step="0.01" value="25"></label></div>'+
  (game==='mines'?'<div class="game-controls"><label style="flex:1">Количество мин<select id="demoMines">'+Array.from({length:20},(_,i)=>'<option value="'+(i+5)+'" '+(i===0?'selected':'')+'>'+(i+5)+'</option>').join('')+'</select></label></div>':'')+
  (game==='tower'?'<div class="game-controls"><label style="flex:1">Сложность<select id="demoDifficulty"><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="hard">Сложная</option><option value="expert">Эксперт</option><option value="master">Мастер</option></select></label></div>':'')+
- '<div class="game-controls"><button class="game-btn" id="demoStart">Начать игру</button><button class="game-btn secondary" id="demoClose">Закрыть</button></div><div class="game-status">Минимальная ставка — 1 очко. Начислено 1000 демонстрационных очков.</div>';
+ '<div class="game-controls"><button class="game-btn" id="demoStart">Начать игру</button><button class="game-btn secondary" id="demoClose">Закрыть</button></div><div class="game-status">Минимальная ставка — 0,10 очка. Начислено 1000 демонстрационных очков.</div>';
  document.querySelector('#demoStart').onclick=()=>startDemoGame(game);
  document.querySelector('#demoClose').onclick=()=>{clearInterval(rocketTimer);demoPanel.classList.remove('open')};
  demoPanel.scrollIntoView({behavior:'smooth',block:'start'});
