@@ -97,7 +97,6 @@ async def profile(call: types.CallbackQuery):
         "Здесь будут отображаться данные аккаунта, покупки и настройки."
     )
     kb = InlineKeyboardBuilder()
-    kb.button(text="🎁 Промокод", callback_data="enter_promo")
     kb.button(text="🆘 Поддержка", callback_data="support")
     kb.button(text="🔙 Назад", callback_data="main_menu")
     kb.adjust(2, 1)
@@ -128,23 +127,43 @@ PRODUCTS = {
     "premium": {"title": "Premium-контент XLINE", "description": "Цифровой доступ к дополнительному контенту", "stars": 150},
 }
 
-@router.callback_query(F.data.startswith("buy_product_"))
-async def buy_product(call: types.CallbackQuery):
-    product_id = call.data.removeprefix("buy_product_")
+async def send_product_invoice(bot, chat_id: int, user_id: int, product_id: str):
     product = PRODUCTS.get(product_id)
     if not product:
-        return await call.answer("Товар не найден.", show_alert=True)
-    payload = f"xline_product:{call.from_user.id}:{product_id}"
-    await call.bot.send_invoice(
-        chat_id=call.from_user.id,
+        return False
+    await bot.send_invoice(
+        chat_id=chat_id,
         title=product["title"],
         description=product["description"],
-        payload=payload,
+        payload=f"xline_product:{user_id}:{product_id}",
         provider_token="",
         currency="XTR",
         prices=[LabeledPrice(label=product["title"], amount=product["stars"])],
     )
+    return True
+
+
+@router.callback_query(F.data.startswith("buy_product_"))
+async def buy_product(call: types.CallbackQuery):
+    product_id = call.data.removeprefix("buy_product_")
+    if not await send_product_invoice(call.bot, call.from_user.id, call.from_user.id, product_id):
+        return await call.answer("Товар не найден.", show_alert=True)
     await call.answer("Счёт отправлен в личный чат.")
+
+
+@router.message(F.web_app_data)
+async def miniapp_product_request(message: Message):
+    import json
+    try:
+        data = json.loads(message.web_app_data.data)
+    except (TypeError, ValueError):
+        return await message.answer("Не удалось прочитать запрос Mini App.")
+    if data.get("action") != "buy_product":
+        return await message.answer("Неизвестное действие Mini App.")
+    product_id = str(data.get("product", ""))
+    if not await send_product_invoice(message.bot, message.chat.id, message.from_user.id, product_id):
+        return await message.answer("Товар не найден. Обнови каталог XLINE.")
+
 
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery):
@@ -212,28 +231,7 @@ async def my_purchases(call: types.CallbackQuery):
     await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
     await call.answer()
 
-# --- ПРОМОКОДЫ, ПОДДЕРЖКА и т.д. ---
-@router.callback_query(F.data == "enter_promo")
-async def enter_promo_start(call: types.CallbackQuery, state: FSMContext):
-    await state.set_state(PromoStates.waiting_promo)
-    kb = InlineKeyboardBuilder().button(text="🔙 Назад", callback_data="profile")
-    await call.message.edit_text(
-        "🎁 <b>Активация промокода</b>\n\nВведи код в чат, чтобы получить награду:", 
-        parse_mode="HTML",
-        reply_markup=kb.as_markup()
-    )
-    await call.answer()
-
-@router.message(PromoStates.waiting_promo)
-async def enter_promo_process(message: types.Message, state: FSMContext):
-    if not message.text: return await message.answer("Введи текстовый код.")
-    await state.clear()
-    amount = use_promo(message.from_user.id, message.text.strip())
-    kb = InlineKeyboardBuilder().button(text="👤 В профиль", callback_data="profile")
-    if amount:
-        await message.answer(f"✅ <b>Промокод активирован!</b>\nТы получил: +{amount:.2f} $", parse_mode="HTML", reply_markup=kb.as_markup())
-    else:
-        await message.answer("❌ <b>Неверный промокод</b> или его лимит активаций исчерпан.", parse_mode="HTML", reply_markup=kb.as_markup())
+# Promocodes that credit a monetary balance are disabled.
 
 @router.callback_query(F.data == "support")
 async def support_start_cb(call: types.CallbackQuery, state: FSMContext):
