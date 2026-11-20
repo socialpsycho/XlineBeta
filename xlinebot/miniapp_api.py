@@ -21,7 +21,7 @@ from .db import connection
 _rng = random.SystemRandom()
 HOUSE_EDGE = 0.97
 MIN_BET = 1
-MAX_BET = 10000
+MAX_BET = 10000.0
 INITIAL_DEMO_POINTS = 1000
 DIFFICULTY = {
     "easy": (4, 1, 9),
@@ -41,7 +41,7 @@ def init_demo_schema():
         db.executescript("""
         CREATE TABLE IF NOT EXISTS miniapp_demo_wallet (
             user_id INTEGER PRIMARY KEY,
-            points INTEGER NOT NULL DEFAULT 1000 CHECK(points >= 0),
+            points REAL NOT NULL DEFAULT 1000.0 CHECK(points >= 0),
             updated_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS miniapp_demo_sessions (
@@ -146,7 +146,7 @@ def _wallet(db, user_id):
         (user_id, INITIAL_DEMO_POINTS, now_iso()),
     )
     row = db.execute("SELECT points FROM miniapp_demo_wallet WHERE user_id=?", (user_id,)).fetchone()
-    return int(row["points"])
+    return round(float(row["points"]), 2)
 
 
 def _active(db, user_id):
@@ -238,7 +238,7 @@ def _start_game(db, user_id, payload):
     if game == "slots":
         return _slot_spin(db, user_id, session)
     if game == "blackjack" and calculate_hand(state["player_hand"]) == 21:
-        payout = round(bet * 2.5)
+        payout = round(bet * 2.5, 2)
         balance = _settle(db, user_id, session, "win", payout,
                           {"player_total": 21, "dealer_total": calculate_hand(state["dealer_hand"]),
                            "player_hand": state["player_hand"], "dealer_hand": state["dealer_hand"]})
@@ -254,7 +254,7 @@ def _slot_spin(db, user_id, session):
     bet = session["state"]["bet"]
     if result[0] == result[1] == result[2]:
         multiplier = {"7️⃣": 50, "💎": 20, "🔔": 10, "🍋": 5, "🍒": 4}[result[0]]
-        payout = round(bet * multiplier)
+        payout = round(bet * multiplier, 2)
         description = "Три одинаковых символа"
     elif result[0] == result[1] or result[1] == result[2] or result[0] == result[2]:
         payout, description = bet, "Два одинаковых — возврат ставки"
@@ -289,7 +289,7 @@ def _action(db, user_id, payload):
             state["opened"].append(idx)
             state["multiplier"] = multiplier_mines(len(state["opened"]), state["mines_count"])
             if len(state["opened"]) == 25 - state["mines_count"]:
-                payout = round(state["bet"] * state["multiplier"])
+                payout = round(state["bet"] * state["multiplier"], 2)
                 balance = _settle(db, user_id, session, "win", payout,
                                   {"mines": state["mines"], "opened": state["opened"]})
                 return {"finished": True, "result": "clear", "mines": state["mines"],
@@ -344,7 +344,7 @@ def _action(db, user_id, payload):
                 return {"finished": True, "result": "crash", "crash_at": previous,
                         "balance": balance, "payout": 0}
             if action == "cashout":
-                payout = round(state["bet"] * current)
+                payout = round(state["bet"] * current, 2)
                 balance = _settle(db, user_id, session, "cashout", payout, {"cashed_out_at": current})
                 return {"finished": True, "result": "cashout", "multiplier": current,
                         "payout": payout, "balance": balance}
@@ -367,7 +367,7 @@ def _action(db, user_id, payload):
                 state["dealer_hand"].append(state["deck"].pop())
             player_total, dealer_total = calculate_hand(state["player_hand"]), calculate_hand(state["dealer_hand"])
             if dealer_total > 21 or player_total > dealer_total:
-                payout, result = round(state["bet"] * 2), "win"
+                payout, result = round(state["bet"] * 2, 2), "win"
             elif player_total < dealer_total:
                 payout, result = 0, "loss"
             else:
