@@ -127,6 +127,8 @@ PRODUCTS = {
 }
 
 async def send_product_invoice(bot, chat_id: int, user_id: int, product_id: str):
+    # Checkout stays closed until real digital goods and automatic delivery are ready.
+    return False
     product = PRODUCTS.get(product_id)
     if not product:
         return False
@@ -178,7 +180,8 @@ async def pre_checkout(query: PreCheckoutQuery):
         )
     except (ValueError, AttributeError):
         valid = False
-    await query.answer(ok=valid, error_message=None if valid else "Счёт недействителен. Открой магазин и создай новый.")
+    valid = False  # Checkout stays closed until product delivery is implemented.
+    await query.answer(ok=valid, error_message="Оплата временно отключена: каталог ещё настраивается.")
 
 @router.message(F.successful_payment)
 async def success_payment(message: Message):
