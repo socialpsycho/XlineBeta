@@ -71,9 +71,8 @@ async def start(message: types.Message, state: FSMContext):
             )
             return
 
-        # Never send an empty/whitespace-only Telegram message: some clients/API
-        # responses reject it, which used to stop the /start flow before the greeting.
-        await message.answer("Клавиатура запуска обновлена.", reply_markup=ReplyKeyboardRemove())
+        # Send the usable launch prompt first. Failure to remove an old reply
+        # keyboard must never prevent /start from showing the inline launch button.
         launch_kb = InlineKeyboardBuilder()
         launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
         await message.answer(
@@ -81,6 +80,10 @@ async def start(message: types.Message, state: FSMContext):
             "Добро пожаловать в XLINE. Нажми кнопку ниже — я подтвержу аккаунт и выдам персональную ссылку для входа.",
             reply_markup=launch_kb.as_markup()
         )
+        try:
+            await message.answer("Старая клавиатура запуска отключена.", reply_markup=ReplyKeyboardRemove())
+        except Exception:
+            logging.exception("XLINE could not remove legacy reply keyboard; inline launch remains available")
     except Exception:
         logging.exception("XLINE /start handler failed")
         try:
@@ -100,13 +103,16 @@ async def check_sub_callback(call: types.CallbackQuery):
             "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой под следующим сообщением.",
             parse_mode="HTML"
         )
-        await call.message.answer("Клавиатура запуска обновлена.", reply_markup=ReplyKeyboardRemove())
         launch_kb = InlineKeyboardBuilder()
         launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
         await call.message.answer(
             "🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.",
             reply_markup=launch_kb.as_markup()
         )
+        try:
+            await call.message.answer("Старая клавиатура запуска отключена.", reply_markup=ReplyKeyboardRemove())
+        except Exception:
+            logging.exception("XLINE could not remove legacy reply keyboard after subscription check")
     except Exception:
         logging.exception("XLINE subscription callback failed")
         await call.message.answer("⚠️ Не удалось проверить подписку. Попробуй ещё раз через /start.")
