@@ -93,25 +93,24 @@ async function requireTelegramInitData(){
  throw new Error(sdkState+'. Закрой XLINE, снова отправь /start и открой через кнопку «🚀 Открыть XLINE» под сообщением бота.');
 }
 async function getDemoAuthHeaders(){
+ const params=new URLSearchParams(window.location.search);
+ const launchToken=params.get('launch_token')||'';
+ if(launchToken){
+  const exchange=await fetch(API_BASE+'/api/auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch_token:launchToken})});
+  const result=await exchange.json().catch(()=>({}));
+  if(!exchange.ok)throw new Error(result.error||'Не удалось подтвердить вход. Нажми /start в боте.');
+  const sessionToken=result.session_token||'';
+  if(!sessionToken)throw new Error('Сервер не выдал сессию входа. Повтори запуск через бота.');
+  try{sessionStorage.setItem('xline_session_token',sessionToken)}catch(e){}
+  params.delete('launch_token');
+  const cleanUrl=window.location.pathname+(params.toString()?'?'+params.toString():'')+window.location.hash;
+  window.history.replaceState({},'',cleanUrl);
+  return {'X-XLINE-Session':sessionToken};
+ }
  const initData=getTelegramInitData();
  if(initData)return {'X-Telegram-Init-Data':initData};
  let sessionToken='';
  try{sessionToken=sessionStorage.getItem('xline_session_token')||''}catch(e){}
- if(!sessionToken){
-  const params=new URLSearchParams(window.location.search);
-  const launchToken=params.get('launch_token')||'';
-  if(launchToken){
-   const exchange=await fetch(API_BASE+'/api/auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch_token:launchToken})});
-   const result=await exchange.json().catch(()=>({}));
-   if(!exchange.ok)throw new Error(result.error||'Не удалось подтвердить вход. Нажми /start в боте.');
-   sessionToken=result.session_token||'';
-   if(!sessionToken)throw new Error('Сервер не выдал сессию входа. Повтори запуск через бота.');
-   try{sessionStorage.setItem('xline_session_token',sessionToken)}catch(e){}
-   params.delete('launch_token');
-   const cleanUrl=window.location.pathname+(params.toString()?'?'+params.toString():'')+window.location.hash;
-   window.history.replaceState({},'',cleanUrl);
-  }
- }
  if(sessionToken)return {'X-XLINE-Session':sessionToken};
  const initDataFallback=await requireTelegramInitData();
  return {'X-Telegram-Init-Data':initDataFallback};
