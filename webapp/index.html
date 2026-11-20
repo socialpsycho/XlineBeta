@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090910">
+<title>XLINE — Mini App</title>
+<style>
+:root{color-scheme:dark;--bg:#090910;--panel:#13131f;--panel2:#1b1a2b;--purple:#9b5cff;--gold:#f5c86a;--muted:#9291a8;--line:#29283b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#33205b 0,transparent 48%),var(--bg);color:#f7f5ff;font:15px Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{max-width:560px;margin:auto;padding:22px 16px 40px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.brand{font-weight:950;letter-spacing:4px;font-size:25px}.brand span{color:var(--purple)}.tag{font-size:10px;color:#c9b5ff;border:1px solid #62428e;border-radius:30px;padding:6px 10px;letter-spacing:1px}
+.hero{border:1px solid #4b3670;border-radius:24px;padding:22px;background:linear-gradient(135deg,#25183f,#151321 70%);box-shadow:0 15px 45px #0008;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;width:170px;height:170px;border-radius:50%;background:#9b5cff22;filter:blur(12px);right:-50px;top:-65px}.eyebrow{color:#c7a9ff;font-size:11px;letter-spacing:2px;font-weight:800}.balance{font-size:34px;font-weight:900;margin:8px 0 2px}.balance small{font-size:13px;color:var(--gold);font-weight:700}.sub{color:var(--muted);font-size:12px}.section{display:flex;align-items:center;justify-content:space-between;margin:26px 2px 13px}.section h2{font-size:16px;margin:0}.section span{color:var(--muted);font-size:11px}
+.games{display:grid;grid-template-columns:1fr 1fr;gap:12px}.game{min-height:132px;text-align:left;border:1px solid var(--line);border-radius:19px;padding:16px;background:linear-gradient(145deg,#1b1a2b,#11111a);color:inherit;cursor:pointer;transition:.18s}.game:active{transform:scale(.98)}.game:hover{border-color:#7650ad}.emoji{font-size:29px;display:block;margin-bottom:12px}.game b{display:block;font-size:14px}.game small{display:block;color:var(--muted);font-size:11px;margin-top:5px}.screen{display:none;margin-top:18px;border:1px solid var(--line);border-radius:22px;background:var(--panel);padding:17px}.screen.active{display:block}.screenhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.screenhead h3{margin:0;font-size:17px}.back{background:transparent;color:#c8b4ef;border:0;font-size:13px;cursor:pointer}.board{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.cell{aspect-ratio:1;border:1px solid #39334e;border-radius:10px;background:linear-gradient(145deg,#29243a,#191725);color:white;font-size:20px;cursor:pointer}.cell.revealed{background:#1d4938;border-color:#347b5a}.cell.bomb{background:#592a39;border-color:#a64c68}.actions{display:flex;gap:9px;margin-top:14px}.action{flex:1;border:0;border-radius:12px;padding:12px;background:linear-gradient(100deg,#8d4ce7,#b36cff);color:white;font-weight:800;cursor:pointer}.action.secondary{background:#29263a;border:1px solid #403a57}.status{color:#c8c3d8;font-size:13px;min-height:20px;margin:12px 0 0}.tower{display:grid;gap:8px}.floor{display:flex;gap:8px}.floor button{flex:1;padding:14px 4px;border-radius:10px;border:1px solid #39334e;background:#211e30;color:white;font-size:18px}.rocketbox{height:170px;border-radius:16px;background:radial-gradient(ellipse at 50% 100%,#4b287c,#171323 65%);display:grid;place-items:center;font-size:48px}.rocketbox strong{display:block;text-align:center;font-size:25px;color:var(--gold)}.cards{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0}.playingcard{width:54px;height:75px;background:#f4f0ff;color:#171321;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:22px}.playingcard.red{color:#d9435e}.note{font-size:11px;color:#85839a;line-height:1.5;margin-top:22px;text-align:center}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div class="brand">X<span>LINE</span></div><div class="tag">DEMO • FREE PLAY</div></header>
+<section class="hero"><div class="eyebrow">ТВОЯ ИГРОВАЯ ЗОНА</div><div class="balance" id="points">1 000 <small>XP</small></div><div class="sub">Демо-очки · не имеют денежной стоимости</div></section>
+<div class="section"><h2>Выбери игру</h2><span>4 режима</span></div>
+<section class="games" id="games">
+<button class="game" data-game="mines"><span class="emoji">💣</span><b>МИНЫ</b><small>Открывай безопасные клетки</small></button>
+<button class="game" data-game="tower"><span class="emoji">🗼</span><b>БАШНЯ</b><small>Поднимайся по этажам</small></button>
+<button class="game" data-game="rocket"><span class="emoji">🚀</span><b>РАКЕТА</b><small>Поймай момент остановки</small></button>
+<button class="game" data-game="blackjack"><span class="emoji">🃏</span><b>BLACKJACK</b><small>Набери ближе к 21</small></button>
+</section>
+<section class="screen" id="screen">
+<div class="screenhead"><h3 id="gameTitle">Игра</h3><button class="back" id="back">← Все игры</button></div>
+<div id="gameBody"></div><p class="status" id="status" aria-live="polite"></p>
+</section>
+<p class="note">Это автономная демонстрация интерфейса XLINE. Очки используются только внутри демо и не покупаются, не передаются и не выводятся.</p>
+</main>
+<script>
+const screen=document.querySelector('#screen'),body=document.querySelector('#gameBody'),statusEl=document.querySelector('#status'),title=document.querySelector('#gameTitle');
+let points=1000, mineSet=new Set(), opened=0, towerLevel=0, rocketTimer=null, deck=[], player=[], dealer=[];
+const titles={mines:'💣 Мины',tower:'🗼 Башня',rocket:'🚀 Ракета',blackjack:'🃏 Blackjack'};
+function msg(s){statusEl.textContent=s}
+function showPoints(){document.querySelector('#points').innerHTML=points.toLocaleString('ru-RU')+' <small>XP</small>'}
+function openGame(name){clearInterval(rocketTimer);screen.classList.add('active');document.querySelector('#games').classList.add('hidden');title.textContent=titles[name];msg('');if(name==='mines')mines();if(name==='tower')tower();if(name==='rocket')rocket();if(name==='blackjack')blackjack()}
+function back(){clearInterval(rocketTimer);screen.classList.remove('active');document.querySelector('#games').classList.remove('hidden')}
+document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>openGame(b.dataset.game)));
+document.querySelector('#back').addEventListener('click',back);
+function mines(){mineSet=new Set();while(mineSet.size<5)mineSet.add(Math.floor(Math.random()*25));opened=0;body.innerHTML='<div class="board" id="board">'+Array.from({length:25},(_,i)=>'<button class="cell" data-i="'+i+'" aria-label="Клетка '+(i+1)+'">?</button>').join('')+'</div><div class="actions"><button class="action secondary" id="new">Новая доска</button></div>';document.querySelector('#board').addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b||b.disabled)return;const i=+b.dataset.i;b.disabled=true;if(mineSet.has(i)){b.textContent='💣';b.classList.add('bomb');document.querySelectorAll('.cell').forEach((c,j)=>{if(mineSet.has(j)){c.textContent='💣';c.classList.add('bomb')}c.disabled=true});msg('Раунд завершён. Попробуй ещё раз!')}else{b.textContent='💎';b.classList.add('revealed');opened++;msg('Безопасно! Открыто клеток: '+opened)}});document.querySelector('#new').onclick=mines}
+function tower(){towerLevel=0;body.innerHTML='<div class="tower" id="floors">'+Array.from({length:6},(_,i)=>'<div class="floor"><button data-floor="'+i+'">◇</button><button data-floor="'+i+'">◇</button><button data-floor="'+i+'">◇</button></div>').join('')+'</div><div class="actions"><button class="action secondary" id="reset">Начать заново</button></div>';document.querySelector('#floors').addEventListener('click',e=>{const b=e.target.closest('[data-floor]');if(!b||+b.dataset.floor!==towerLevel)return;const row=b.parentElement;const safe=Math.floor(Math.random()*3);[...row.children].forEach((c,i)=>{c.textContent=i===safe?'💎':'✦';c.disabled=true});if([...row.children].indexOf(b)===safe){towerLevel++;msg('Этаж пройден: '+towerLevel+'/6');if(towerLevel===6)msg('Отлично! Все этажи пройдены.')}else{msg('Этаж не пройден. Начни новый раунд.');document.querySelectorAll('[data-floor]').forEach(c=>c.disabled=true)}});document.querySelector('#reset').onclick=tower}
+function rocket(){body.innerHTML='<div class="rocketbox"><div><div id="rocketIcon">🚀</div><strong id="mult">1.00x</strong></div></div><div class="actions"><button class="action" id="launch">Запустить</button><button class="action secondary" id="stop" disabled>Стоп</button></div>';let value=1,run=false;const launch=document.querySelector('#launch'),stop=document.querySelector('#stop');launch.onclick=()=>{if(run)return;run=true;value=1;launch.disabled=true;stop.disabled=false;rocketTimer=setInterval(()=>{value+=.03+Math.random()*.09;document.querySelector('#mult').textContent=value.toFixed(2)+'x';if(value>4.5){clearInterval(rocketTimer);run=false;launch.disabled=false;stop.disabled=true;msg('Демо-раунд завершён. Попробуй ещё раз.')}},120)};stop.onclick=()=>{clearInterval(rocketTimer);run=false;launch.disabled=false;stop.disabled=true;msg('Остановлено на '+value.toFixed(2)+'x. Это только визуальная симуляция.')}}
+function draw(){const n=deck.pop();return n}
+function card(n){return {v:n%13+1,s:['♠','♥','♦','♣'][Math.floor(n/13)]}}
+function val(c){return Math.min(c.v,10)}
+function total(a){let t=a.reduce((s,c)=>s+val(c),0);if(a.some(c=>c.v===1)&&t+10<=21)t+=10;return t}
+function cardHtml(c){return '<div class="playingcard '+(['♥','♦'].includes(c.s)?'red':'')+'">'+(c.v===1?'A':c.v>10?['J','Q','K'][c.v-11]:c.v)+c.s+'</div>'}
+function blackjack(){deck=Array.from({length:52},(_,i)=>i).sort(()=>Math.random()-.5);player=[card(draw()),card(draw())];dealer=[card(draw()),card(draw())];renderBJ(false);msg('Твоя очередь. Нажми «Ещё карту» или «Хватит».')}
+function renderBJ(reveal){body.innerHTML='<div style="text-align:center;color:#aaa;font-size:12px">ДИЛЕР · '+(reveal?total(dealer):'?')+'</div><div class="cards">'+dealer.map((c,i)=>!reveal&&i===1?'<div class="playingcard">?</div>':cardHtml(c)).join('')+'</div><div style="text-align:center;color:#aaa;font-size:12px">ТЫ · '+total(player)+'</div><div class="cards">'+player.map(cardHtml).join('')+'</div><div class="actions"><button class="action" id="hit">Ещё карту</button><button class="action secondary" id="stand">Хватит</button></div><div class="actions"><button class="action secondary" id="again">Новая раздача</button></div>';const finish=()=>{while(total(dealer)<17)dealer.push(card(draw()));renderBJ(true);document.querySelector('#hit').disabled=true;document.querySelector('#stand').disabled=true;msg(total(player)>21?'Перебор. Раунд завершён.':total(dealer)>21||total(player)>total(dealer)?'Ты выиграл раунд!':total(player)===total(dealer)?'Ничья!':'Дилер выиграл раунд.')};document.querySelector('#hit').onclick=()=>{player.push(card(draw()));if(total(player)>=21)finish();else renderBJ(false)};document.querySelector('#stand').onclick=finish;document.querySelector('#again').onclick=blackjack;if(total(player)>=21){document.querySelector('#hit').disabled=true;document.querySelector('#stand').disabled=true}}
+showPoints();
+</script>
+</body>
+</html>
