@@ -9,12 +9,12 @@ from aiocryptopay import AioCryptoPay, Networks
 from aiogram.exceptions import TelegramBadRequest
 
 from ..db import (
-    get_user, add_balance, get_max_win, get_history, get_ban_reason, 
+    get_user, add_balance, get_ban_reason, 
     use_promo, create_withdrawal, create_ticket, get_active_ticket_by_user,
     is_maintenance, get_deposit_history, get_withdraw_history, get_promo_history,
     register_user, is_withdraw_blocked, has_real_deposit
 )
-from ..keyboards import main_menu, play_menu, sub_menu
+from ..keyboards import main_menu, sub_menu
 from ..config import ADMIN_ID, LOG_CHAT_ID, CRYPTOBOT_TOKEN, SUPPORT_CHAT_ID, WEBAPP_URL
 from ..states import PromoStates, WalletStates, SupportStates
 from ..utils import check_sub
@@ -62,13 +62,13 @@ async def start(message: types.Message, state: FSMContext):
 
     if not await check_sub(message.bot, uid):
         return await message.answer(
-            "👋 Привет! Чтобы начать играть, подпишись на наш канал.\n\n"
+            "👋 Привет! Чтобы открыть XLINE, подпишись на наш канал.\n\n"
             "Нажми кнопку ниже, а затем 'Проверить подписку'.",
             reply_markup=sub_menu()
         )
 
     await message.answer(
-        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в Xline.", 
+        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми «🚀 Открыть XLINE» внизу.", 
         reply_markup=main_reply_menu(uid)
     )
 
@@ -86,17 +86,6 @@ async def check_sub_callback(call: types.CallbackQuery):
     else:
         await call.answer("❌ Ты всё ещё не подписан на канал!", show_alert=True)
 
-@router.message(F.text == "🎰 Играть")
-async def reply_play(message: types.Message, state: FSMContext):
-    await state.clear()
-    if not await check_sub(message.bot, message.from_user.id):
-        return await message.answer("⛔ Для доступа к играм подпишись на канал!", reply_markup=sub_menu())
-        
-    if is_maintenance():
-        return await message.answer("🛠 <b>Казино на техобслуживании.</b>\nСкоро вернемся!", parse_mode="HTML")
-        
-    await message.answer("🎮 Выбери игру:", reply_markup=play_menu())
-
 @router.message(F.text == "💼 Кошелёк")
 async def reply_wallet(message: types.Message):
     balance = get_user(message.from_user.id)[0]
@@ -110,111 +99,26 @@ async def reply_wallet(message: types.Message):
         parse_mode="HTML", reply_markup=kb.as_markup()
     )
 
-@router.message(F.text == "👤 Профиль")
-async def reply_profile(message: types.Message):
-    uid = message.from_user.id
-    balance, wins, losses, wagered, _, _, _ = get_user(uid)
-    total = wins + losses
-    rate = wins / total * 100 if total else 0
-    max_win = get_max_win(uid)
-    
-    if wagered < 10: rank = "🥉 Новичок"
-    elif wagered < 100: rank = "🥈 Любитель"
-    elif wagered < 500: rank = "🥇 Профи"
-    elif wagered < 5000: rank = "🏆 Хайроллер"
-    else: rank = "💎 Казино-Магнат"
-
-    text = (
-        f"👤 <b>Твой профиль</b>\n\n"
-        f"🆔 ID: <code>{uid}</code>\n"
-        f"🏅 Ранг: <b>{rank}</b>\n"
-        f"💰 Баланс: <b>{balance:.2f} $</b>\n"
-        f"🏆 Рекордный выигрыш: <b>{max_win:.2f} $</b>\n"
-        f"📈 WinRate: <b>{rate:.0f}%</b>\n"
-        f"🎮 Игр: <b>{total}</b>\n"
-        f"💸 Всего поставлено: <b>{wagered:.2f} $</b>"
-    )
-    
-    kb = InlineKeyboardBuilder()
-    kb.button(text="📜 История игр", callback_data="game_history")
-    kb.button(text="🎁 Промокод", callback_data="enter_promo")
-    kb.button(text="🆘 Поддержка", callback_data="support")
-    kb.adjust(2, 1)
-    
-    await message.answer(text, parse_mode="HTML", reply_markup=kb.as_markup())
-
 @router.callback_query(F.data == "main_menu")
 async def main(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await call.message.edit_text("Главное меню:", reply_markup=main_menu(call.from_user.id))
     await call.answer()
 
-@router.callback_query(F.data == "play_menu")
-async def games(call: types.CallbackQuery, state: FSMContext):
-    await state.clear()
-    if not await check_sub(call.bot, call.from_user.id):
-        return await call.answer("⛔ Для доступа к играм подпишись на канал!", show_alert=True)
-        
-    if is_maintenance():
-        return await call.answer("🛠 Казино на техобслуживании.", show_alert=True)
-        
-    await call.message.edit_text("🎮 Выбери игру:", reply_markup=play_menu())
-    await call.answer()
-
 @router.callback_query(F.data == "profile")
 async def profile(call: types.CallbackQuery):
     uid = call.from_user.id
-    balance, wins, losses, wagered, _, _, _ = get_user(uid)
-    total = wins + losses
-    rate = wins / total * 100 if total else 0
-    max_win = get_max_win(uid)
-    
-    if wagered < 10: rank = "🥉 Новичок"
-    elif wagered < 100: rank = "🥈 Любитель"
-    elif wagered < 500: rank = "🥇 Профи"
-    elif wagered < 5000: rank = "🏆 Хайроллер"
-    else: rank = "💎 Казино-Магнат"
-
     text = (
-        f"👤 <b>Твой профиль</b>\n\n"
-        f"🆔 ID: <code>{uid}</code>\n"
-        f"🏅 Ранг: <b>{rank}</b>\n"
-        f"💰 Баланс: <b>{balance:.2f} $</b>\n"
-        f"🏆 Рекордный выигрыш: <b>{max_win:.2f} $</b>\n"
-        f"📈 WinRate: <b>{rate:.0f}%</b>\n"
-        f"🎮 Игр: <b>{total}</b>\n"
-        f"💸 Всего поставлено: <b>{wagered:.2f} $</b>"
+        "👤 <b>Профиль XLINE</b>\n\n"
+        f"🆔 Telegram ID: <code>{uid}</code>\n"
+        f"👋 Имя: {call.from_user.first_name or 'Пользователь'}\n\n"
+        "Здесь будут отображаться данные аккаунта, покупки и настройки."
     )
-    
     kb = InlineKeyboardBuilder()
-    kb.button(text="📜 История игр", callback_data="game_history")
     kb.button(text="🎁 Промокод", callback_data="enter_promo")
     kb.button(text="🆘 Поддержка", callback_data="support")
     kb.button(text="🔙 Назад", callback_data="main_menu")
-    kb.adjust(2, 2)
-    
-    await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
-    await call.answer()
-
-@router.callback_query(F.data == "game_history")
-async def game_history(call: types.CallbackQuery):
-    uid = call.from_user.id
-    history = get_history(uid, limit=5)
-    
-    if not history:
-        text = "📜 <b>История игр</b>\n\nТы ещё не играл. Самое время начать!"
-    else:
-        text = "📜 <b>История игр (последние 5)</b>\n\n"
-        for game, result, bet, payout in history:
-            game_name = {"mines": "💣 Мины", "tower": "🗼 Башня", "rocket": "🚀 Ракета", "slots": "🎰 Слоты", "blackjack": "🃏 Блэкджек"}.get(game, game.capitalize())
-            if result == "win": res_text = f"✅ Выигрыш: <b>+{payout:.2f} $</b>"
-            elif result == "loss": res_text = f"❌ Проигрыш: <b>-{bet:.2f} $</b>"
-            elif result == "cashout": res_text = f"💰 Забрано: <b>+{payout:.2f} $</b>"
-            elif result == "promo": res_text = f"🎁 Промокод: <b>+{payout:.2f} $</b>"
-            else: res_text = f"🔹 {result.capitalize()}"
-            text += f"{game_name} | {res_text}\n"
-            
-    kb = InlineKeyboardBuilder().button(text="🔙 Назад в профиль", callback_data="profile")
+    kb.adjust(2, 1)
     await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
     await call.answer()
 
