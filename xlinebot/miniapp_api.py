@@ -205,8 +205,8 @@ def _start_game(db, user_id, payload):
     state = {"bet": bet, "started_at": time.time()}
     if game == "mines":
         count = payload.get("mines", 5)
-        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 24:
-            raise web.HTTPBadRequest(text="Количество мин должно быть от 1 до 24.")
+        if isinstance(count, bool) or not isinstance(count, int) or not 5 <= count <= 24:
+            raise web.HTTPBadRequest(text="Количество мин должно быть от 5 до 24.")
         state.update({"mines_count": count, "mines": sorted(_rng.sample(range(25), count)),
                       "opened": [], "multiplier": 1.0})
     elif game == "tower":
@@ -359,7 +359,7 @@ def _action(db, user_id, payload):
                 balance = _settle(db, user_id, session, "loss", 0,
                                   {"player_hand": state["player_hand"], "dealer_hand": state["dealer_hand"],
                                    "player_total": total, "dealer_total": calculate_hand(state["dealer_hand"])})
-                return {"finished": True, "result": "bust", "state": public_state(game, state), "balance": balance, "payout": 0}
+                return {"finished": True, "result": "bust", "state": {"player_hand": state["player_hand"], "dealer_hand": state["dealer_hand"], "player_total": total, "dealer_total": calculate_hand(state["dealer_hand"])}, "balance": balance, "payout": 0}
             _save_session(db, user_id, session)
             return {"finished": False, "state": public_state(game, state), "player_total": total}
         if action == "stand":
@@ -409,10 +409,6 @@ async def error_middleware(request, handler):
 def create_app():
     app = web.Application(middlewares=[cors_middleware, error_middleware], client_max_size=16 * 1024)
     init_demo_schema()
-
-    @web.middleware
-    async def _unused(request, handler):
-        return await handler(request)
 
     def auth(request):
         user = verify_init_data(request.headers.get("X-Telegram-Init-Data", ""))
@@ -474,5 +470,8 @@ def create_app():
     app.router.add_post("/api/game/start", start)
     app.router.add_post("/api/game/action", action)
     app.router.add_post("/api/game/cancel", cancel)
-    app.router.add_route("OPTIONS", "/{tail:.*}", lambda request: web.Response(status=204))
+    async def options(request):
+        return web.Response(status=204)
+
+    app.router.add_route("OPTIONS", "/{tail:.*}", options)
     return app
