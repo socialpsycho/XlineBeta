@@ -34,18 +34,13 @@ STAR_PACKAGES = {
 
 def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
-    kb.button(text="🎰 Играть")
-    kb.button(text="💼 Кошелёк")
-    kb.button(text="👤 Профиль")
-    kb.button(text="🚀 XLINE Mini App", web_app=WebAppInfo(url=WEBAPP_URL))
-    
-    if user_id == ADMIN_ID:
-        kb.button(text="👑 Админка")
-        kb.adjust(2, 2, 1)
-    else:
-        kb.adjust(2, 2)
-        
-    return kb.as_markup(resize_keyboard=True, input_field_placeholder="Выбери действие...")
+    kb.button(text="🚀 Играть", web_app=WebAppInfo(url=WEBAPP_URL))
+    kb.adjust(1)
+    return kb.as_markup(
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Нажми «🚀 Играть»"
+    )
 
 @router.message(Command("start"))
 async def start(message: types.Message, state: FSMContext):
@@ -81,11 +76,13 @@ async def start(message: types.Message, state: FSMContext):
 async def check_sub_callback(call: types.CallbackQuery):
     if await check_sub(call.bot, call.from_user.id):
         await call.message.edit_text(
-            "✅ <b>Подписка подтверждена!</b>\nТеперь тебе доступны все игры.", 
-            parse_mode="HTML",
-            reply_markup=main_menu(call.from_user.id)
+            "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой «🚀 Играть» внизу.",
+            parse_mode="HTML"
         )
-        await call.message.answer("Главное меню активировано.", reply_markup=main_reply_menu(call.from_user.id))
+        await call.message.answer(
+            "🚀 XLINE готов к запуску.",
+            reply_markup=main_reply_menu(call.from_user.id)
+        )
     else:
         await call.answer("❌ Ты всё ещё не подписан на канал!", show_alert=True)
 
