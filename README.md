@@ -24,6 +24,8 @@ The Mini App static page is hosted separately from the bot, so the API needs a p
 - In \`webapp/index.html\`, set \`window.XLINE_API_URL = "https://YOUR-PUBLIC-API-HOST";\` before the application script. Do not put the bot token or any secret in the web page.
 - The API authenticates each request using Telegram Web App \`initData\` and rejects unsigned, expired, or forged user data.
 
+Health check: `GET /health` (returns service status without account data).
+
 Available endpoints:
 - \`GET /api/me\` — demo points and current active round.
 - \`GET /api/history\` — recent demo-game history.
