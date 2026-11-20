@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://socialpsycho.github.io/XlineBeta/").strip()
 
 # Keep existing data when moving the default database from casino.db to play.db.
 _database_env = os.getenv("DATABASE_PATH", "").strip()
