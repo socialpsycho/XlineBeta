@@ -58,8 +58,8 @@ def init_demo_schema():
             user_id INTEGER NOT NULL,
             game TEXT NOT NULL,
             result TEXT NOT NULL,
-            bet INTEGER NOT NULL,
-            payout INTEGER NOT NULL,
+            bet REAL NOT NULL,
+            payout REAL NOT NULL,
             details_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
@@ -167,8 +167,8 @@ def _save_session(db, user_id, session):
 
 
 def _settle(db, user_id, session, result, payout, details):
-    bet = int(session["state"]["bet"])
-    payout = max(0, int(payout))
+    bet = round(float(session["state"]["bet"]), 2)
+    payout = max(0.0, round(float(payout), 2))
     db.execute(
         "UPDATE miniapp_demo_wallet SET points=points+?, updated_at=? WHERE user_id=?",
         (payout, now_iso(), user_id),
@@ -191,8 +191,9 @@ def _start_game(db, user_id, payload):
     bet = payload.get("bet")
     if game not in {"mines", "tower", "rocket", "slots", "blackjack"}:
         raise web.HTTPBadRequest(text="Неизвестная игра.")
-    if isinstance(bet, bool) or not isinstance(bet, int) or not MIN_BET <= bet <= MAX_BET:
-        raise web.HTTPBadRequest(text=f"Ставка должна быть целым числом от {MIN_BET} до {MAX_BET} очков.")
+    if isinstance(bet, bool) or not isinstance(bet, (int, float)) or not math.isfinite(float(bet)) or not MIN_BET <= float(bet) <= MAX_BET:
+        raise web.HTTPBadRequest(text=f"Ставка должна быть числом от {MIN_BET} до {MAX_BET} очков.")
+    bet = round(float(bet), 2)
     if _active(db, user_id):
         raise web.HTTPConflict(text="Сначала заверши текущую игру.")
     balance = _wallet(db, user_id)
