@@ -545,6 +545,8 @@ def create_app():
             balance = _settle(db, user_id, session, "cancelled", 0, {"cancelled": True})
         return web.json_response({"finished": True, "balance": balance, "payout": 0})
 
+    # Friendly root endpoint: opening the service URL in a browser should not return 405.
+    app.router.add_get("/", health)
     app.router.add_get("/health", health)
     app.router.add_post("/api/auth/exchange", exchange_launch_token)
     app.router.add_get("/api/me", me)
