@@ -1,20 +1,17 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup, WebAppInfo
+from .config import WEBAPP_URL
 from .config import ADMIN_ID
 
 def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardBuilder()
-    kb.button(text="🎰 Играть")
-    kb.button(text="💼 Кошелёк")
-    kb.button(text="👤 Профиль")
-    
-    if user_id == ADMIN_ID:
-        kb.button(text="👑 Админка")
-        kb.adjust(2, 2)
-    else:
-        kb.adjust(2, 1)
-        
-    return kb.as_markup(resize_keyboard=True, input_field_placeholder="Выбери действие...")
+    kb.button(text="🚀 Играть", web_app=WebAppInfo(url=WEBAPP_URL))
+    kb.adjust(1)
+    return kb.as_markup(
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Нажми «🚀 Играть»"
+    )
 
 def main_menu(user_id: int):
     kb = InlineKeyboardBuilder()
