@@ -69,6 +69,32 @@ def init_demo_schema():
             ON miniapp_demo_history(user_id, id DESC);
         """)
 
+        # Upgrade an early demo schema without discarding a saved active round.
+        session_columns = db.execute("PRAGMA table_info(miniapp_demo_sessions)").fetchall()
+        user_id_is_primary = any(row["name"] == "user_id" and row["pk"] == 1 for row in session_columns)
+        if user_id_is_primary:
+            db.execute("DROP INDEX IF EXISTS idx_demo_active_session")
+            db.execute("ALTER TABLE miniapp_demo_sessions RENAME TO miniapp_demo_sessions_legacy")
+            db.execute("""
+                CREATE TABLE miniapp_demo_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    game TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                INSERT INTO miniapp_demo_sessions
+                    (session_id, user_id, game, state_json, status, created_at, updated_at)
+                SELECT session_id, user_id, game, state_json, status, created_at, updated_at
+                FROM miniapp_demo_sessions_legacy
+            """)
+            db.execute("DROP TABLE miniapp_demo_sessions_legacy")
+            db.execute("CREATE INDEX idx_demo_active_session ON miniapp_demo_sessions(user_id, status)")
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
