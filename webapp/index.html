@@ -178,7 +178,7 @@ function openDemoPanel(game){
  clearInterval(rocketTimer);rocketTimer=null;demoPanel.classList.add('open');demoGame=game;demoSession=null;demoState=null;
  document.querySelector('#demoGameTitle').textContent=gameNames[game];
  demoBody.innerHTML='<div class="game-controls"><label style="flex:1">Ставка в очках<input id="demoBet" type="number" min="1" max="10000" step="1" value="25"></label></div>'+
- (game==='mines'?'<div class="game-controls"><label style="flex:1">Количество мин<select id="demoMines">'+Array.from({length:24},(_,i)=>'<option value="'+(i+1)+'" '+(i===4?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select></label></div>':'')+
+ (game==='mines'?'<div class="game-controls"><label style="flex:1">Количество мин<select id="demoMines">'+Array.from({length:20},(_,i)=>'<option value="'+(i+5)+'" '+(i===0?'selected':'')+'>'+(i+5)+'</option>').join('')+'</select></label></div>':'')+
  (game==='tower'?'<div class="game-controls"><label style="flex:1">Сложность<select id="demoDifficulty"><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="hard">Сложная</option><option value="expert">Эксперт</option><option value="master">Мастер</option></select></label></div>':'')+
  '<div class="game-controls"><button class="game-btn" id="demoStart">Начать игру</button><button class="game-btn secondary" id="demoClose">Закрыть</button></div><div class="game-status">Минимальная ставка — 1 очко. Начислено 1000 демонстрационных очков.</div>';
  document.querySelector('#demoStart').onclick=()=>startDemoGame(game);
@@ -202,7 +202,7 @@ function renderActiveGame(){
  const s=demoState||{};
  let html='<div class="game-status" id="demoStatus">Ставка: '+s.bet+' очков · Коэффициент: x'+Number(s.multiplier||1).toFixed(2)+'</div>';
  if(demoGame==='mines'){
-  html+='<div class="game-board" style="grid-template-columns:repeat(5,1fr)">'+Array.from({length:25},(_,i)=>'<button class="game-cell '+(s.opened||[]).includes(i)?'safe':''" data-cell="'+i+'">'+((s.opened||[]).includes(i)?'💎':'⬜')+'</button>').join('')+'</div>';
+  html+='<div class="game-board" style="grid-template-columns:repeat(5,1fr)">'+Array.from({length:25},(_,i)=>'<button class="game-cell '+((s.opened||[]).includes(i)?'safe':'')+'" data-cell="'+i+'">'+((s.opened||[]).includes(i)?'💎':'⬜')+'</button>').join('')+'</div>';
  }else if(demoGame==='tower'){
   const cells=s.cells||4,levels=s.levels||9,opened=s.opened||[];
   html+='<div class="game-board" style="grid-template-columns:repeat('+cells+',1fr)">'+Array.from({length:levels},(_,row)=>{const level=levels-1-row;return Array.from({length:cells},(_,cell)=>{const active=level===opened.length;const done=level<opened.length;return '<button class="game-cell '+(done&&opened[level]===cell?'safe':'')+'" '+(active?'data-level="'+level+'" data-cell="'+cell+'"':'disabled')+'>'+(done?(opened[level]===cell?'💎':'⬛'):active?'⬜':'🔒')+'</button>'}).join('')}).join('')+'</div>';
