@@ -49,8 +49,14 @@ async def start(message: types.Message, state: FSMContext):
             reply_markup=sub_menu()
         )
 
+    launch_kb = InlineKeyboardBuilder()
+    launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
     await message.answer(
-        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми «🚀 Открыть XLINE» внизу.", 
+        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми кнопку ниже, чтобы открыть приложение.",
+        reply_markup=launch_kb.as_markup()
+    )
+    await message.answer(
+        "Можно также открыть XLINE через кнопку внизу экрана.",
         reply_markup=main_reply_menu(uid)
     )
 
