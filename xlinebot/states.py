@@ -1,13 +1,5 @@
 from aiogram.fsm.state import State, StatesGroup
 
-class GameStates(StatesGroup):
-    waiting_mines_bet = State()
-    waiting_tower_bet = State()
-    waiting_rocket_bet = State()
-    waiting_rocket_auto = State()
-    waiting_slots_bet = State()
-    waiting_bj_bet = State()
-
 class WalletStates(StatesGroup):
     waiting_deposit_amount = State()
     waiting_crypto_amount = State()
