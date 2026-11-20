@@ -7,6 +7,7 @@ import hashlib
 import secrets
 import time
 from urllib.parse import urlencode
+import logging
 
 from ..db import (
     get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
@@ -30,36 +31,61 @@ def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
 
 @router.message(Command("start"))
 async def start(message: types.Message, state: FSMContext):
-    await state.clear()
-    uid = message.from_user.id
-    register_user(uid, message.from_user.username)
-    status = get_user(uid)[-1]
-    
-    if status == "banned":
-        reason = get_ban_reason(uid)
-        text = "⛔ <b>Ты забанен в этом боте.</b>"
-        if reason: text += f"\n\n<b>Причина:</b> {reason}"
-        return await message.answer(text, parse_mode="HTML")
-    if status == "frozen":
-        reason = get_ban_reason(uid)
-        text = "🧊 <b>Твой аккаунт заморожен.</b>"
-        if reason: text += f"\n\n<b>Причина:</b> {reason}"
-        return await message.answer(text, parse_mode="HTML")
+    try:
+        await state.clear()
+        uid = message.from_user.id
+        register_user(uid, message.from_user.username)
+        status = get_user(uid)[-1]
 
-    if not await check_sub(message.bot, uid):
-        return await message.answer(
-            "👋 Привет! Чтобы открыть XLINE, подпишись на наш канал.\n\n"
-            "Нажми кнопку ниже, а затем 'Проверить подписку'.",
-            reply_markup=sub_menu()
+        if status == "banned":
+            reason = get_ban_reason(uid)
+            text = "⛔ <b>Ты забанен в этом боте.</b>"
+            if reason:
+                text += f"\n\n<b>Причина:</b> {reason}"
+            await message.answer(text, parse_mode="HTML")
+            return
+
+        if status == "frozen":
+            reason = get_ban_reason(uid)
+            text = "🧊 <b>Твой аккаунт заморожен.</b>"
+            if reason:
+                text += f"\n\n<b>Причина:</b> {reason}"
+            await message.answer(text, parse_mode="HTML")
+            return
+
+        try:
+            subscribed = await check_sub(message.bot, uid)
+        except Exception:
+            logging.exception("XLINE /start: subscription check failed for user %s", uid)
+            await message.answer(
+                "⚠️ Сейчас не получается проверить подписку. Попробуй отправить /start ещё раз через минуту."
+            )
+            return
+
+        if not subscribed:
+            await message.answer(
+                "👋 Привет! Чтобы открыть XLINE, подпишись на наш канал.\n\n"
+                "Нажми кнопку ниже, а затем «Проверить подписку».",
+                reply_markup=sub_menu()
+            )
+            return
+
+        # Never send an empty/whitespace-only Telegram message: some clients/API
+        # responses reject it, which used to stop the /start flow before the greeting.
+        await message.answer("Клавиатура запуска обновлена.", reply_markup=ReplyKeyboardRemove())
+        launch_kb = InlineKeyboardBuilder()
+        launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
+        await message.answer(
+            f"👋 Привет, {message.from_user.first_name or 'друг'}!\n\n"
+            "Добро пожаловать в XLINE. Нажми кнопку ниже — я подтвержу аккаунт и выдам персональную ссылку для входа.",
+            reply_markup=launch_kb.as_markup()
         )
-
-    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
-    launch_kb = InlineKeyboardBuilder()
-    launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
-    await message.answer(
-        f"👋 Привет, {message.from_user.first_name}!\n\nДобро пожаловать в XLINE. Нажми кнопку ниже — я подтвержу аккаунт и выдам персональную ссылку для входа.",
-        reply_markup=launch_kb.as_markup()
-    )
+    except Exception:
+        logging.exception("XLINE /start handler failed")
+        try:
+            await message.answer("⚠️ Не удалось обработать /start из-за временной ошибки. Попробуй ещё раз чуть позже.")
+        except Exception:
+            logging.exception("XLINE /start fallback reply failed")
 
 @router.callback_query(F.data == "check_sub")
 async def check_sub_callback(call: types.CallbackQuery):
@@ -68,7 +94,7 @@ async def check_sub_callback(call: types.CallbackQuery):
             "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой под следующим сообщением.",
             parse_mode="HTML"
         )
-        await call.message.answer(" ", reply_markup=ReplyKeyboardRemove())
+        await call.message.answer("Клавиатура запуска обновлена.", reply_markup=ReplyKeyboardRemove())
         launch_kb = InlineKeyboardBuilder()
         launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
         await call.message.answer("🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.", reply_markup=launch_kb.as_markup())
