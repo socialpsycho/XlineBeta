@@ -8,6 +8,7 @@ import secrets
 import time
 from urllib.parse import urlencode
 import logging
+import asyncio
 
 from ..db import (
     get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
@@ -54,7 +55,7 @@ async def start(message: types.Message, state: FSMContext):
             return
 
         try:
-            subscribed = await check_sub(message.bot, uid)
+            subscribed = await asyncio.wait_for(check_sub(message.bot, uid), timeout=10)
         except Exception:
             logging.exception("XLINE /start: subscription check failed for user %s", uid)
             await message.answer(
@@ -89,7 +90,12 @@ async def start(message: types.Message, state: FSMContext):
 
 @router.callback_query(F.data == "check_sub")
 async def check_sub_callback(call: types.CallbackQuery):
-    if await check_sub(call.bot, call.from_user.id):
+    await call.answer()
+    try:
+        subscribed = await asyncio.wait_for(check_sub(call.bot, call.from_user.id), timeout=10)
+        if not subscribed:
+            await call.message.answer("❌ Ты всё ещё не подписан на канал!")
+            return
         await call.message.edit_text(
             "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой под следующим сообщением.",
             parse_mode="HTML"
@@ -97,32 +103,39 @@ async def check_sub_callback(call: types.CallbackQuery):
         await call.message.answer("Клавиатура запуска обновлена.", reply_markup=ReplyKeyboardRemove())
         launch_kb = InlineKeyboardBuilder()
         launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
-        await call.message.answer("🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.", reply_markup=launch_kb.as_markup())
-    else:
-        await call.answer("❌ Ты всё ещё не подписан на канал!", show_alert=True)
+        await call.message.answer(
+            "🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.",
+            reply_markup=launch_kb.as_markup()
+        )
+    except Exception:
+        logging.exception("XLINE subscription callback failed")
+        await call.message.answer("⚠️ Не удалось проверить подписку. Попробуй ещё раз через /start.")
 
 
 @router.callback_query(F.data == "xline_launch")
 async def xline_launch_callback(call: types.CallbackQuery):
-    # The callback originates from Telegram and binds the launch token to this user.
-    from ..db import connection
-    raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    now = int(time.time())
-    with connection() as db:
-        db.execute(
-            "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
-            (token_hash, call.from_user.id, now + 180),
+    await call.answer("Готовлю персональную ссылку…")
+    try:
+        from ..db import connection
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        now = int(time.time())
+        with connection() as db:
+            db.execute(
+                "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
+                (token_hash, call.from_user.id, now + 180),
+            )
+        separator = "&" if "?" in WEBAPP_URL else "?"
+        launch_url = WEBAPP_URL + separator + urlencode({"launch_token": raw_token})
+        kb = InlineKeyboardBuilder()
+        kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=launch_url))
+        await call.message.answer(
+            "✅ Аккаунт подтверждён. Ссылка действует 3 минуты и используется один раз.",
+            reply_markup=kb.as_markup(),
         )
-    separator = "&" if "?" in WEBAPP_URL else "?"
-    launch_url = WEBAPP_URL + separator + urlencode({"launch_token": raw_token})
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=launch_url))
-    await call.message.answer(
-        "✅ Аккаунт подтверждён. Ссылка действует 3 минуты и используется один раз.",
-        reply_markup=kb.as_markup(),
-    )
-    await call.answer("Ссылка для безопасного входа готова.")
+    except Exception:
+        logging.exception("XLINE launch-token creation failed")
+        await call.message.answer("⚠️ Не удалось подготовить ссылку. Отправь /start и попробуй ещё раз.")
 
 @router.message(F.text == "💼 Кошелёк")
 async def reply_wallet(message: types.Message):
