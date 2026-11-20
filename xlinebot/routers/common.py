@@ -1,4 +1,3 @@
-import logging
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -6,12 +5,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import ReplyKeyboardMarkup, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
 
 from ..db import (
-    get_user, get_ban_reason, use_promo, create_ticket, get_active_ticket_by_user,
+    get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
     register_user, record_star_purchase, get_star_purchases
 )
 from ..keyboards import main_menu, sub_menu
-from ..config import ADMIN_ID, LOG_CHAT_ID, SUPPORT_CHAT_ID, WEBAPP_URL
-from ..states import PromoStates, SupportStates
+from ..config import ADMIN_ID, SUPPORT_CHAT_ID, WEBAPP_URL
+from ..states import SupportStates
 from ..utils import check_sub
 
 router = Router()
@@ -30,7 +29,7 @@ async def start(message: types.Message, state: FSMContext):
     await state.clear()
     uid = message.from_user.id
     register_user(uid, message.from_user.username)
-    balance, wins, losses, wagered, _, _, status = get_user(uid)
+    status = get_user(uid)[-1]
     
     if status == "banned":
         reason = get_ban_reason(uid)
