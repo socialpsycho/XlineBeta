@@ -20,7 +20,7 @@ from .db import connection
 
 _rng = random.SystemRandom()
 HOUSE_EDGE = 0.97
-MIN_BET = 1
+MIN_BET = 0.10
 MAX_BET = 10000.0
 INITIAL_DEMO_POINTS = 1000
 DIFFICULTY = {
