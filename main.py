@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import ErrorEvent
 from xlinebot.config import BOT_TOKEN, LOG_LEVEL, ERRORS_CHAT_ID, STATUS_CHAT_ID
 from xlinebot.db import init_db
-from xlinebot.routers import common, mines, tower, rocket, admin, slots, blackjack
+from xlinebot.routers import common, mines, tower, rocket, admin, slots, blackjack, miniapp
 
 async def main():
     logging.basicConfig(
@@ -26,6 +26,7 @@ async def main():
     dp.include_router(slots.router)
     dp.include_router(admin.router)
     dp.include_router(blackjack.router)
+    dp.include_router(miniapp.router)
 
     # --- ОБРАБОТЧИК ОШИБОК (ЛЕТЯТ В ERRORS_CHAT_ID) ---
     @dp.errors()
