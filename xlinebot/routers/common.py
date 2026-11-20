@@ -129,19 +129,6 @@ PRODUCTS = {
 async def send_product_invoice(bot, chat_id: int, user_id: int, product_id: str):
     # Checkout stays closed until real digital goods and automatic delivery are ready.
     return False
-    product = PRODUCTS.get(product_id)
-    if not product:
-        return False
-    await bot.send_invoice(
-        chat_id=chat_id,
-        title=product["title"],
-        description=product["description"],
-        payload=f"xline_product:{user_id}:{product_id}",
-        provider_token="",
-        currency="XTR",
-        prices=[LabeledPrice(label=product["title"], amount=product["stars"])],
-    )
-    return True
 
 
 @router.callback_query(F.data.startswith("buy_product_"))
