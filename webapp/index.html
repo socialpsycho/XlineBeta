@@ -66,7 +66,7 @@ const demoPanel=document.querySelector('#demoGamePanel');
 const demoBody=document.querySelector('#demoGameBody');
 const demoWarning=document.querySelector('#demoApiWarning');
 let demoSession=null,demoGame=null,demoState=null,rocketTimer=null,actionBusy=false;
-const gameNames={mines:'💣 Mines',tower:'🗼 Tower',rocket:'🚀 Rocket',slots:'🎰 Slots',blackjack:'🃏 Blackjack'};
+const gameNames={mines:'Mines',tower:'Tower',rocket:'Rocket',slots:'Slots',blackjack:'Blackjack'};
 async function demoApi(path,method='GET',body){
  if(!API_BASE)throw new Error('Не задан адрес API. Нужен публичный HTTPS-адрес сервера бота в настройке XLINE_API_URL.');
  const tg=window.Telegram&&window.Telegram.WebApp;
@@ -111,7 +111,7 @@ function renderActiveGame(){
  const s=demoState||{};
  let html='<div class="game-status" id="demoStatus">Ставка: '+s.bet+' очков · Коэффициент: x'+Number(s.multiplier||1).toFixed(2)+'</div>';
  if(demoGame==='mines'){
-  html+='<div class="game-board" style="grid-template-columns:repeat(5,1fr)">'+Array.from({length:25},(_,i)=>'<button class="game-cell '+((s.opened||[]).includes(i)?'safe':'')+'" data-cell="'+i+'">'+((s.opened||[]).includes(i)?'💎':'⬜')+'</button>').join('')+'</div>';
+  html+='<div class="game-board" style="grid-template-columns:repeat(5,1fr)">'+Array.from({length:25},(_,i)=>'<button class="game-cell '+((s.opened||[]).includes(i)?'safe':'')+'" data-cell="'+i+'">'+((s.opened||[]).includes(i)?'◆':'·')+'</button>').join('')+'</div>';
  }else if(demoGame==='tower'){
   const cells=s.cells||4,levels=s.levels||9,opened=s.opened||[];
   html+='<div class="game-board" style="grid-template-columns:repeat('+cells+',1fr)">'+Array.from({length:levels},(_,row)=>{const level=levels-1-row;return Array.from({length:cells},(_,cell)=>{const active=level===opened.length;const done=level<opened.length;return '<button class="game-cell '+(done&&opened[level]===cell?'safe':'')+'" '+(active?'data-level="'+level+'" data-cell="'+cell+'"':'disabled')+'>'+(done?(opened[level]===cell?'💎':'⬛'):active?'⬜':'🔒')+'</button>'}).join('')}).join('')+'</div>';
