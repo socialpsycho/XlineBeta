@@ -51,8 +51,7 @@ async def start(message: types.Message, state: FSMContext):
 
     # Remove the legacy reply-keyboard Web App button: Telegram does not provide
     # signed initData for Mini Apps launched from reply-keyboard buttons.
-    await message.answer("Старую кнопку запуска отключил. Используй кнопку под следующим сообщением.")
-    await message.answer(" ", reply_markup=ReplyKeyboardRemove())
+    await message.answer("Старую кнопку запуска отключил. Используй кнопку под следующим сообщением.", reply_markup=ReplyKeyboardRemove())
     launch_kb = InlineKeyboardBuilder()
     launch_kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
     await message.answer(
