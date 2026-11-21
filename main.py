@@ -11,7 +11,7 @@ from aiogram.types import ErrorEvent
 from xlinebot.config import BOT_TOKEN, LOG_LEVEL, ERRORS_CHAT_ID, STATUS_CHAT_ID
 from xlinebot.db import init_db
 from xlinebot.miniapp_api import create_app
-from xlinebot.routers import common, admin, miniapp
+from xlinebot.routers import common, admin
 
 
 async def main():
@@ -25,7 +25,6 @@ async def main():
     dp = Dispatcher()
     dp.include_router(common.router)
     dp.include_router(admin.router)
-    dp.include_router(miniapp.router)
 
     @dp.errors()
     async def global_error_handler(event: ErrorEvent):
