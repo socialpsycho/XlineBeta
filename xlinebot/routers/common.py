@@ -29,14 +29,14 @@ async def start(message: types.Message, state: FSMContext):
             reason = get_ban_reason(uid)
             text = "⛔ <b>Ты забанен в этом боте.</b>"
             if reason:
-                text += f"\\n\\n<b>Причина:</b> {reason}"
+                text += f"\n\n<b>Причина:</b> {reason}"
             await message.answer(text, parse_mode="HTML")
             return
         if status == "frozen":
             reason = get_ban_reason(uid)
             text = "🧊 <b>Твой аккаунт заморожен.</b>"
             if reason:
-                text += f"\\n\\n<b>Причина:</b> {reason}"
+                text += f"\n\n<b>Причина:</b> {reason}"
             await message.answer(text, parse_mode="HTML")
             return
 
@@ -48,13 +48,13 @@ async def start(message: types.Message, state: FSMContext):
             return
         if not subscribed:
             await message.answer(
-                "👋 Добро пожаловать в XLINE!\\n\\nПодпишись на канал, чтобы открыть все разделы.",
+                "👋 Добро пожаловать в XLINE!\n\nПодпишись на канал, чтобы открыть все разделы.",
                 reply_markup=sub_menu()
             )
             return
 
         await message.answer(
-            "♠️ <b>Добро пожаловать в XLINE!</b>\\n\\n"
+            "♠️ <b>Добро пожаловать в XLINE!</b>\n\n"
             "Выбери раздел ниже. Игры и баланс работают в демонстрационном режиме — "
             "виртуальные баллы не являются деньгами.",
             parse_mode="HTML",
@@ -121,7 +121,7 @@ async def text_games_menu(message: types.Message):
     kb.button(text="🔙 Главное меню", callback_data="main_menu")
     kb.adjust(3, 3, 3, 1)
     await message.answer(
-        "🎮 <b>Игры XLINE</b>\\n\\nВыбери игру. Сейчас подключается чат-игровой режим; "
+        "🎮 <b>Игры XLINE</b>\n\nВыбери игру. Сейчас подключается чат-игровой режим; "
         "денежных ставок и выплат нет.",
         parse_mode="HTML", reply_markup=kb.as_markup()
     )
@@ -135,11 +135,11 @@ async def text_profile(message: types.Message):
     data = get_user(message.from_user.id)
     balance, wins, losses, wagered = data[:4]
     await message.answer(
-        "👤 <b>Профиль XLINE</b>\\n\\n"
-        f"🆔 ID: <code>{message.from_user.id}</code>\\n"
-        f"💳 Баланс: <b>{balance:.2f} demo</b>\\n"
-        f"🏆 Победы: <b>{wins}</b>\\n"
-        f"❌ Поражения: <b>{losses}</b>\\n"
+        "👤 <b>Профиль XLINE</b>\n\n"
+        f"🆔 ID: <code>{message.from_user.id}</code>\n"
+        f"💳 Баланс: <b>{balance:.2f} demo</b>\n"
+        f"🏆 Победы: <b>{wins}</b>\n"
+        f"❌ Поражения: <b>{losses}</b>\n"
         f"🎯 Отыгрыш: <b>{wagered:.2f}</b>",
         parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
     )
@@ -148,7 +148,7 @@ async def text_profile(message: types.Message):
 async def text_balance(message: types.Message):
     balance = get_user(message.from_user.id)[0]
     await message.answer(
-        f"💳 <b>Баланс XLINE</b>\\n\\nДоступно: <b>{balance:.2f} demo</b>\\n"
+        f"💳 <b>Баланс XLINE</b>\n\nДоступно: <b>{balance:.2f} demo</b>\n"
         "Это виртуальные баллы для тестирования, не реальные деньги.",
         parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
     )
@@ -174,8 +174,16 @@ async def text_section_placeholder(message: types.Message):
         "📢 Канал": "Новости XLINE: @xlinewin_news",
         "💬 Чат": "Ссылка на чат будет добавлена после настройки сообщества."
     }
+    if message.text == "📢 Канал":
+        await message.answer(
+            "📢 Канал XLINE\n\nНовости XLINE: @xlinewin_news",
+            parse_mode="HTML",
+            reply_markup=main_reply_menu(message.from_user.id)
+        )
+        return
+
     await message.answer(
-        f"📌 <b>{labels[message.text]}</b>\\n\\n{explanations[message.text]}",
+        f"📌 <b>{labels[message.text]}</b>\n\n{explanations[message.text]}",
         parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
     )
 
@@ -210,7 +218,7 @@ async def callback_games_menu(call: types.CallbackQuery):
         kb.button(text=label, callback_data=code)
     kb.button(text="🔙 Главное меню", callback_data="main_menu")
     kb.adjust(3, 3, 3, 1)
-    await call.message.answer("🎮 <b>Игры XLINE</b>\\nВыбери игру:", parse_mode="HTML", reply_markup=kb.as_markup())
+    await call.message.answer("🎮 <b>Игры XLINE</b>\nВыбери игру:", parse_mode="HTML", reply_markup=kb.as_markup())
     await call.answer()
 
 @router.callback_query(F.data.startswith("section_"))
@@ -229,7 +237,7 @@ async def section_callback(call: types.CallbackQuery):
     }
     title, description = sections[call.data]
     kb = InlineKeyboardBuilder().button(text="🔙 Главное меню", callback_data="main_menu")
-    await call.message.answer(f"<b>{title}</b>\\n\\n{description}", parse_mode="HTML", reply_markup=kb.as_markup())
+    await call.message.answer(f"<b>{title}</b>\n\n{description}", parse_mode="HTML", reply_markup=kb.as_markup())
     await call.answer()
 
 @router.callback_query(F.data == "profile")
