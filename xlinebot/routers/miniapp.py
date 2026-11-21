@@ -1,25 +1,22 @@
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
-
-from ..config import WEBAPP_URL
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 router = Router()
-
-webapp_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[[
-        InlineKeyboardButton(
-            text="🚀 Открыть XLINE Mini App",
-            web_app=WebAppInfo(url=WEBAPP_URL),
-        )
-    ]]
-)
 
 
 @router.message(Command("miniapp"))
 async def open_miniapp(message: Message):
+    # Use the same authenticated one-time launch flow as /start.
+    # A raw WebApp URL here would open without a launch token and can fail auth.
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text="🔐 Подготовить безопасный запуск",
+            callback_data="xline_launch",
+        )
+    ]])
     await message.answer(
-        "🚀 XLINE Mini App\n\n"
-        "Управляй профилем, кошельком и цифровыми товарами XLINE.",
-        reply_markup=webapp_keyboard,
+        "🔐 Для безопасного входа в XLINE нажми кнопку ниже. "
+        "Я подготовлю персональную ссылку, действующую 3 минуты.",
+        reply_markup=keyboard,
     )
