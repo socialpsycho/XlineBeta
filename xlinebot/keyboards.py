@@ -9,7 +9,7 @@ def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
     kb.button(text="💳 Баланс")
     kb.button(text="🎮 Играть")
     kb.button(text="☰ Меню")
-    kb.adjust(1, 1, 1)
+    kb.adjust(3)
     return kb.as_markup(
         resize_keyboard=True,
         is_persistent=True,
