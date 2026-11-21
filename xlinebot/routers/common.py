@@ -6,7 +6,7 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice
 import hashlib
 import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 import logging
 import asyncio
 
@@ -131,8 +131,16 @@ async def xline_launch_callback(call: types.CallbackQuery):
                 "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
                 (token_hash, call.from_user.id, now + 180),
             )
-        separator = "&" if "?" in WEBAPP_URL else "?"
-        launch_url = WEBAPP_URL + separator + urlencode({"launch_token": raw_token})
+        # Add the token as a real query parameter (before any URL fragment).
+        # Naive string concatenation after a '#' silently hides it from the page.
+        parts = urlsplit(WEBAPP_URL)
+        if parts.scheme != "https" or not parts.netloc:
+            raise ValueError("WEBAPP_URL must be a public HTTPS URL")
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        query["launch_token"] = raw_token
+        launch_url = urlunsplit((
+            parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment
+        ))
         kb = InlineKeyboardBuilder()
         kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=launch_url))
         await call.message.answer(
