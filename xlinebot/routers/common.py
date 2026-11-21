@@ -120,21 +120,22 @@ async def check_sub_callback(call: types.CallbackQuery):
 
 @router.callback_query(F.data == "xline_launch")
 async def xline_launch_callback(call: types.CallbackQuery):
+    # Acknowledge immediately so Telegram does not leave the button spinning
+    # while channel membership is checked.
+    await call.answer("Проверяю доступ…")
     try:
         uid = call.from_user.id
         status = get_user(uid)[-1]
         if status in ("banned", "frozen"):
-            await call.answer("Доступ к аккаунту ограничен.", show_alert=True)
+            await call.message.answer("⛔ Доступ к аккаунту ограничен.")
             return
         subscribed = await asyncio.wait_for(check_sub(call.bot, uid), timeout=10)
         if not subscribed:
-            await call.answer("Сначала подпишись на канал.", show_alert=True)
             await call.message.answer(
                 "📢 Для запуска XLINE нужна подписка на канал.",
                 reply_markup=sub_menu(),
             )
             return
-        await call.answer("Готовлю персональную ссылку…")
         from ..db import connection
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
