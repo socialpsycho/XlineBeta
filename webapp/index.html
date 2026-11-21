@@ -92,19 +92,47 @@ async function requireTelegramInitData(){
  const sdkState=!window.Telegram?'SDK не загрузился':!tg?'WebApp не инициализирован':'SDK загружен, но Telegram не передал подпись запуска';
  throw new Error(sdkState+'. Закрой XLINE, снова отправь /start и открой через кнопку «🚀 Открыть XLINE» под сообщением бота.');
 }
+function getLaunchToken(){
+ const tg=window.Telegram&&window.Telegram.WebApp;
+ for(const raw of [window.location.search,window.location.hash]){
+  if(!raw)continue;
+  const params=new URLSearchParams(raw.replace(/^[#?]/,''));
+  const token=params.get('launch_token')||params.get('tgWebAppStartParam');
+  if(token)return token;
+ }
+ const startParam=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
+ return typeof startParam==='string'?startParam:'';
+}
+function cleanLaunchTokenFromUrl(){
+ try{
+  const url=new URL(window.location.href);
+  url.searchParams.delete('launch_token');
+  url.searchParams.delete('tgWebAppStartParam');
+  const hash=url.hash.replace(/^#/,'');
+  if(hash){
+   const params=new URLSearchParams(hash);
+   params.delete('launch_token');
+   params.delete('tgWebAppStartParam');
+   url.hash=params.toString()?params.toString():'';
+  }
+  window.history.replaceState({},'',url.pathname+url.search+url.hash);
+ }catch(e){}
+}
 async function getDemoAuthHeaders(){
- const params=new URLSearchParams(window.location.search);
- const launchToken=params.get('launch_token')||'';
+ // A fresh one-time bot token takes priority over any cached browser session.
+ const launchToken=getLaunchToken();
  if(launchToken){
-  const exchange=await fetch(API_BASE+'/api/auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch_token:launchToken})});
+  const exchange=await fetch(API_BASE+'/api/auth/exchange',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({launch_token:launchToken})
+  });
   const result=await exchange.json().catch(()=>({}));
-  if(!exchange.ok)throw new Error(result.error||'Не удалось подтвердить вход. Нажми /start в боте.');
+  if(!exchange.ok)throw new Error(result.error||'Ссылка входа недействительна. Отправь /start и подготовь новую ссылку.');
   const sessionToken=result.session_token||'';
   if(!sessionToken)throw new Error('Сервер не выдал сессию входа. Повтори запуск через бота.');
   try{sessionStorage.setItem('xline_session_token',sessionToken)}catch(e){}
-  params.delete('launch_token');
-  const cleanUrl=window.location.pathname+(params.toString()?'?'+params.toString():'')+window.location.hash;
-  window.history.replaceState({},'',cleanUrl);
+  cleanLaunchTokenFromUrl();
   return {'X-XLINE-Session':sessionToken};
  }
  const initData=getTelegramInitData();
