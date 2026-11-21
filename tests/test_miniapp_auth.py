@@ -25,6 +25,36 @@ class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.client.close()
 
+    async def _session_for(self, user_id):
+        raw_token = f"game-test-token-{user_id}-" + ("z" * 40)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        with connection() as db:
+            db.execute(
+                "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
+                (token_hash, user_id, int(time.time()) + 180),
+            )
+        response = await self.client.post(
+            "/api/auth/exchange", json={"launch_token": raw_token}
+        )
+        self.assertEqual(response.status, 200)
+        payload = await response.json()
+        return {"X-XLINE-Session": payload["session_token"]}
+
+    async def test_every_game_can_start(self):
+        games = ("mines", "tower", "rocket", "slots", "blackjack")
+        for offset, game in enumerate(games, start=1):
+            user_id = 700000000 + offset
+            headers = await self._session_for(user_id)
+            response = await self.client.post(
+                "/api/game/start",
+                headers=headers,
+                json={"game": game, "bet": 1, "mines": 5, "difficulty": "easy"},
+            )
+            self.assertEqual(response.status, 200, f"{game} failed to start")
+            payload = await response.json()
+            self.assertIn("balance", payload)
+            self.assertEqual(payload.get("game", game), game)
+
     async def test_health_endpoint(self):
         response = await self.client.get("/")
         self.assertEqual(response.status, 200)
