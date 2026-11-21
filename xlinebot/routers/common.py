@@ -60,6 +60,7 @@ async def start(message: types.Message, state: FSMContext):
             parse_mode="HTML",
             reply_markup=main_reply_menu(uid)
         )
+        await message.answer("☰ <b>Выбери раздел ниже.</b>", parse_mode="HTML", reply_markup=main_menu(uid))
     except Exception:
         logging.exception("XLINE /start handler failed")
         try:
@@ -80,6 +81,7 @@ async def check_sub_callback(call: types.CallbackQuery):
             parse_mode="HTML",
             reply_markup=main_reply_menu(call.from_user.id)
         )
+        await call.message.answer("☰ <b>Выбери раздел ниже.</b>", parse_mode="HTML", reply_markup=main_menu(call.from_user.id))
     except Exception:
         logging.exception("XLINE subscription callback failed")
         await call.message.answer("⚠️ Не удалось проверить подписку. Попробуй ещё раз через /start.")
@@ -102,11 +104,8 @@ async def reply_wallet(message: types.Message):
 @router.message(F.text == "☰ Меню")
 async def text_main_menu(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(
-        "♠️ <b>Главное меню XLINE</b>\\nВыбери нужный раздел:",
-        parse_mode="HTML",
-        reply_markup=main_reply_menu(message.from_user.id)
-    )
+    await message.answer("☰ <b>Главное меню XLINE</b>", parse_mode="HTML",
+                         reply_markup=main_menu(message.from_user.id))
 
 @router.message(F.text == "🎮 Играть")
 async def text_games_menu(message: types.Message):
@@ -193,11 +192,44 @@ async def text_support_start(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "main_menu")
 async def main(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.answer(
-        "♠️ <b>Главное меню XLINE</b>\\nВыбери нужный раздел:",
-        parse_mode="HTML",
-        reply_markup=main_reply_menu(call.from_user.id)
-    )
+    await call.message.answer("☰ <b>Главное меню XLINE</b>", parse_mode="HTML",
+                              reply_markup=main_menu(call.from_user.id))
+    await call.answer()
+
+
+@router.callback_query(F.data == "menu_games")
+async def callback_games_menu(call: types.CallbackQuery):
+    kb = InlineKeyboardBuilder()
+    for label, code in [
+        ("🎲 Кубик", "chatgame_dice"), ("⚽ Футбол", "chatgame_football"),
+        ("🏀 Баскетбол", "chatgame_basketball"), ("🎯 Дартс", "chatgame_darts"),
+        ("🎳 Боулинг", "chatgame_bowling"), ("🎰 Слоты", "chatgame_slots"),
+        ("💫 Комбо ставки", "chatgame_combo"), ("🎮 Авторские", "chatgame_custom"),
+        ("💎 Exclusive", "chatgame_exclusive")
+    ]:
+        kb.button(text=label, callback_data=code)
+    kb.button(text="🔙 Главное меню", callback_data="main_menu")
+    kb.adjust(3, 3, 3, 1)
+    await call.message.answer("🎮 <b>Игры XLINE</b>\\nВыбери игру:", parse_mode="HTML", reply_markup=kb.as_markup())
+    await call.answer()
+
+@router.callback_query(F.data.startswith("section_"))
+async def section_callback(call: types.CallbackQuery):
+    sections = {
+        "section_deposit": ("⬇️ Пополнение", "Пополнение реальными деньгами отключено. Баланс демонстрационный."),
+        "section_withdraw": ("⬆️ Вывод", "Вывод средств отключён. Виртуальные баллы нельзя вывести или обменять."),
+        "section_bonus": ("🎁 Бонусы", "Раздел бонусов готовится."),
+        "section_referral": ("🤝 Рефералка", "Реферальная система готовится."),
+        "section_receipts": ("🧾 Чеки", "История чеков появится после подключения системы покупок."),
+        "section_settings": ("⚙️ Настройки", "Настройки профиля готовятся."),
+        "section_top": ("📊 Топ", "Рейтинг игроков появится после запуска чат-игр."),
+        "section_chat_rewards": ("💸 Награды чата", "Награды за чат пока отключены."),
+        "section_channel": ("📢 Канал XLINE", "Новости XLINE: @xlinewin_news"),
+        "section_chat": ("💬 Чат XLINE", "Ссылка на чат будет добавлена после настройки сообщества.")
+    }
+    title, description = sections[call.data]
+    kb = InlineKeyboardBuilder().button(text="🔙 Главное меню", callback_data="main_menu")
+    await call.message.answer(f"<b>{title}</b>\\n\\n{description}", parse_mode="HTML", reply_markup=kb.as_markup())
     await call.answer()
 
 @router.callback_query(F.data == "profile")
