@@ -1,8 +1,8 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice, PreCheckoutQuery, Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import PreCheckoutQuery, Message
 import logging
 import asyncio
 
@@ -16,15 +16,6 @@ from ..states import SupportStates
 from ..utils import check_sub
 
 router = Router()
-def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
-    kb = ReplyKeyboardBuilder()
-    kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=WEBAPP_URL))
-    kb.adjust(1)
-    return kb.as_markup(
-        resize_keyboard=True,
-        is_persistent=True,
-        input_field_placeholder="Открыть XLINE"
-    )
 
 @router.message(Command("start"))
 async def start(message: types.Message, state: FSMContext):
@@ -84,20 +75,11 @@ async def check_sub_callback(call: types.CallbackQuery):
         if not subscribed:
             await call.message.answer("❌ Ты всё ещё не подписан на канал!")
             return
-        await call.message.edit_text(
-            "✅ <b>Подписка подтверждена!</b>\nОткрой XLINE кнопкой под следующим сообщением.",
-            parse_mode="HTML"
-        )
-        launch_kb = InlineKeyboardBuilder()
-        launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
         await call.message.answer(
-            "🚀 XLINE готов. Нажми кнопку, чтобы подтвердить аккаунт.",
-            reply_markup=launch_kb.as_markup()
+            "✅ <b>Подписка подтверждена!</b>\nДобро пожаловать в XLINE. Выбери раздел в меню ниже.",
+            parse_mode="HTML",
+            reply_markup=main_reply_menu(call.from_user.id)
         )
-        try:
-            await call.message.answer("Старая клавиатура запуска отключена.", reply_markup=ReplyKeyboardRemove())
-        except Exception:
-            logging.exception("XLINE could not remove legacy reply keyboard after subscription check")
     except Exception:
         logging.exception("XLINE subscription callback failed")
         await call.message.answer("⚠️ Не удалось проверить подписку. Попробуй ещё раз через /start.")
