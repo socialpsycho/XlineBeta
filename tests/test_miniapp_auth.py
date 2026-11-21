@@ -68,7 +68,7 @@ class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
             "auth_date": str(int(time.time())),
             "user": json.dumps({"id": 987654321, "first_name": "Test"}, separators=(",", ":")),
         }
-        check_string = "\\n".join(f"{key}={value}" for key, value in sorted(pairs.items()))
+        check_string = "\n".join(f"{key}={value}" for key, value in sorted(pairs.items()))
         secret = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
         pairs["hash"] = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
         signed = urlencode(pairs)
