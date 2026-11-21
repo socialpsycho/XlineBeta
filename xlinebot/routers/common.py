@@ -2,11 +2,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
-import hashlib
-import secrets
-import time
-from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
+from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, LabeledPrice, PreCheckoutQuery, Message
 import logging
 import asyncio
 
@@ -14,8 +10,8 @@ from ..db import (
     get_user, get_ban_reason, create_ticket, get_active_ticket_by_user,
     register_user, record_star_purchase, get_star_purchases
 )
-from ..keyboards import main_menu, sub_menu
-from ..config import ADMIN_ID, SUPPORT_CHAT_ID, WEBAPP_URL
+from ..keyboards import main_menu, main_reply_menu, sub_menu
+from ..config import ADMIN_ID, SUPPORT_CHAT_ID
 from ..states import SupportStates
 from ..utils import check_sub
 
@@ -42,15 +38,14 @@ async def start(message: types.Message, state: FSMContext):
             reason = get_ban_reason(uid)
             text = "⛔ <b>Ты забанен в этом боте.</b>"
             if reason:
-                text += f"\n\n<b>Причина:</b> {reason}"
+                text += f"\\n\\n<b>Причина:</b> {reason}"
             await message.answer(text, parse_mode="HTML")
             return
-
         if status == "frozen":
             reason = get_ban_reason(uid)
             text = "🧊 <b>Твой аккаунт заморожен.</b>"
             if reason:
-                text += f"\n\n<b>Причина:</b> {reason}"
+                text += f"\\n\\n<b>Причина:</b> {reason}"
             await message.answer(text, parse_mode="HTML")
             return
 
@@ -58,36 +53,26 @@ async def start(message: types.Message, state: FSMContext):
             subscribed = await asyncio.wait_for(check_sub(message.bot, uid), timeout=10)
         except Exception:
             logging.exception("XLINE /start: subscription check failed for user %s", uid)
-            await message.answer(
-                "⚠️ Сейчас не получается проверить подписку. Попробуй отправить /start ещё раз через минуту."
-            )
+            await message.answer("⚠️ Сейчас не получается проверить подписку. Попробуй /start ещё раз через минуту.")
             return
-
         if not subscribed:
             await message.answer(
-                "👋 Привет! Чтобы открыть XLINE, подпишись на наш канал.\n\n"
-                "Нажми кнопку ниже, а затем «Проверить подписку».",
+                "👋 Добро пожаловать в XLINE!\\n\\nПодпишись на канал, чтобы открыть все разделы.",
                 reply_markup=sub_menu()
             )
             return
 
-        # Send the usable launch prompt first. Failure to remove an old reply
-        # keyboard must never prevent /start from showing the inline launch button.
-        launch_kb = InlineKeyboardBuilder()
-        launch_kb.button(text="🔐 Подготовить безопасный запуск", callback_data="xline_launch")
         await message.answer(
-            f"👋 Привет, {message.from_user.first_name or 'друг'}!\n\n"
-            "Добро пожаловать в XLINE. Нажми кнопку ниже — я подтвержу аккаунт и выдам персональную ссылку для входа.",
-            reply_markup=launch_kb.as_markup()
+            "♠️ <b>Добро пожаловать в XLINE!</b>\\n\\n"
+            "Выбери раздел ниже. Игры и баланс работают в демонстрационном режиме — "
+            "виртуальные баллы не являются деньгами.",
+            parse_mode="HTML",
+            reply_markup=main_reply_menu(uid)
         )
-        try:
-            await message.answer("Старая клавиатура запуска отключена.", reply_markup=ReplyKeyboardRemove())
-        except Exception:
-            logging.exception("XLINE could not remove legacy reply keyboard; inline launch remains available")
     except Exception:
         logging.exception("XLINE /start handler failed")
         try:
-            await message.answer("⚠️ Не удалось обработать /start из-за временной ошибки. Попробуй ещё раз чуть позже.")
+            await message.answer("⚠️ Не удалось открыть меню. Попробуй отправить /start ещё раз.")
         except Exception:
             logging.exception("XLINE /start fallback reply failed")
 
@@ -118,53 +103,6 @@ async def check_sub_callback(call: types.CallbackQuery):
         await call.message.answer("⚠️ Не удалось проверить подписку. Попробуй ещё раз через /start.")
 
 
-@router.callback_query(F.data == "xline_launch")
-async def xline_launch_callback(call: types.CallbackQuery):
-    # Acknowledge immediately so Telegram does not leave the button spinning
-    # while channel membership is checked.
-    await call.answer("Проверяю доступ…")
-    try:
-        uid = call.from_user.id
-        status = get_user(uid)[-1]
-        if status in ("banned", "frozen"):
-            await call.message.answer("⛔ Доступ к аккаунту ограничен.")
-            return
-        subscribed = await asyncio.wait_for(check_sub(call.bot, uid), timeout=10)
-        if not subscribed:
-            await call.message.answer(
-                "📢 Для запуска XLINE нужна подписка на канал.",
-                reply_markup=sub_menu(),
-            )
-            return
-        from ..db import connection
-        raw_token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        now = int(time.time())
-        with connection() as db:
-            db.execute(
-                "INSERT INTO miniapp_launch_tokens(token_hash,user_id,expires_at,used_at) VALUES(?,?,?,NULL)",
-                (token_hash, call.from_user.id, now + 180),
-            )
-        # Add the token as a real query parameter (before any URL fragment).
-        # Naive string concatenation after a '#' silently hides it from the page.
-        parts = urlsplit(WEBAPP_URL)
-        if parts.scheme != "https" or not parts.netloc:
-            raise ValueError("WEBAPP_URL must be a public HTTPS URL")
-        query = dict(parse_qsl(parts.query, keep_blank_values=True))
-        query["launch_token"] = raw_token
-        launch_url = urlunsplit((
-            parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment
-        ))
-        kb = InlineKeyboardBuilder()
-        kb.button(text="🚀 Открыть XLINE", web_app=WebAppInfo(url=launch_url))
-        await call.message.answer(
-            "✅ Аккаунт подтверждён. Ссылка действует 3 минуты и используется один раз.",
-            reply_markup=kb.as_markup(),
-        )
-    except Exception:
-        logging.exception("XLINE launch-token creation failed")
-        await call.message.answer("⚠️ Не удалось подготовить ссылку. Отправь /start и попробуй ещё раз.")
-
 @router.message(F.text == "💼 Кошелёк")
 async def reply_wallet(message: types.Message):
     await message.answer(
@@ -177,10 +115,107 @@ async def reply_wallet(message: types.Message):
         ).as_markup()
     )
 
+
+# --- ОСНОВНЫЕ РАЗДЕЛЫ ЧАТ-БОТА (без Mini App) ---
+@router.message(F.text == "☰ Меню")
+async def text_main_menu(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer(
+        "♠️ <b>Главное меню XLINE</b>\\nВыбери нужный раздел:",
+        parse_mode="HTML",
+        reply_markup=main_reply_menu(message.from_user.id)
+    )
+
+@router.message(F.text == "🎮 Играть")
+async def text_games_menu(message: types.Message):
+    kb = InlineKeyboardBuilder()
+    for label, code in [
+        ("🎲 Кубик", "chatgame_dice"), ("⚽ Футбол", "chatgame_football"),
+        ("🏀 Баскетбол", "chatgame_basketball"), ("🎯 Дартс", "chatgame_darts"),
+        ("🎳 Боулинг", "chatgame_bowling"), ("🎰 Слоты", "chatgame_slots"),
+        ("💫 Комбо ставки", "chatgame_combo"), ("🎮 Авторские", "chatgame_custom"),
+        ("💎 Exclusive", "chatgame_exclusive")
+    ]:
+        kb.button(text=label, callback_data=code)
+    kb.button(text="🔙 Главное меню", callback_data="main_menu")
+    kb.adjust(3, 3, 3, 1)
+    await message.answer(
+        "🎮 <b>Игры XLINE</b>\\n\\nВыбери игру. Сейчас подключается чат-игровой режим; "
+        "денежных ставок и выплат нет.",
+        parse_mode="HTML", reply_markup=kb.as_markup()
+    )
+
+@router.callback_query(F.data.startswith("chatgame_"))
+async def chat_game_placeholder(call: types.CallbackQuery):
+    await call.answer("Этот режим ещё настраивается. Пока доступен только демонстрационный баланс.", show_alert=True)
+
+@router.message(F.text == "👤 Профиль")
+async def text_profile(message: types.Message):
+    data = get_user(message.from_user.id)
+    balance, wins, losses, wagered = data[:4]
+    await message.answer(
+        "👤 <b>Профиль XLINE</b>\\n\\n"
+        f"🆔 ID: <code>{message.from_user.id}</code>\\n"
+        f"💳 Баланс: <b>{balance:.2f} demo</b>\\n"
+        f"🏆 Победы: <b>{wins}</b>\\n"
+        f"❌ Поражения: <b>{losses}</b>\\n"
+        f"🎯 Отыгрыш: <b>{wagered:.2f}</b>",
+        parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
+    )
+
+@router.message(F.text == "💳 Баланс")
+async def text_balance(message: types.Message):
+    balance = get_user(message.from_user.id)[0]
+    await message.answer(
+        f"💳 <b>Баланс XLINE</b>\\n\\nДоступно: <b>{balance:.2f} demo</b>\\n"
+        "Это виртуальные баллы для тестирования, не реальные деньги.",
+        parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
+    )
+
+@router.message(F.text.in_({"⬇️ Пополнить", "⬆️ Вывести", "🎁 Бонусы", "🤝 Рефералка", "🧾 Чеки", "⚙️ Настройки", "📊 Топ", "💸 $ с чата", "📢 Канал", "💬 Чат"}))
+async def text_section_placeholder(message: types.Message):
+    labels = {
+        "⬇️ Пополнить": "Пополнение", "⬆️ Вывести": "Вывод",
+        "🎁 Бонусы": "Бонусы", "🤝 Рефералка": "Реферальная программа",
+        "🧾 Чеки": "Чеки", "⚙️ Настройки": "Настройки",
+        "📊 Топ": "Рейтинг игроков", "💸 $ с чата": "Награды чата",
+        "📢 Канал": "Канал XLINE", "💬 Чат": "Чат XLINE"
+    }
+    explanations = {
+        "⬇️ Пополнить": "Пополнение реальными деньгами отключено. Баланс сейчас демонстрационный.",
+        "⬆️ Вывести": "Вывод средств отключён. Виртуальные баллы нельзя вывести или обменять.",
+        "🎁 Бонусы": "Раздел бонусов готовится.",
+        "🤝 Рефералка": "Реферальная система готовится.",
+        "🧾 Чеки": "История чеков появится после подключения безопасной системы покупок.",
+        "⚙️ Настройки": "Настройки профиля готовятся.",
+        "📊 Топ": "Рейтинг игроков появится после запуска чат-игр.",
+        "💸 $ с чата": "Награды за чат пока отключены.",
+        "📢 Канал": "Новости XLINE: @xlinewin_news",
+        "💬 Чат": "Ссылка на чат будет добавлена после настройки сообщества."
+    }
+    await message.answer(
+        f"📌 <b>{labels[message.text]}</b>\\n\\n{explanations[message.text]}",
+        parse_mode="HTML", reply_markup=main_reply_menu(message.from_user.id)
+    )
+
+@router.message(F.text == "🎧 Поддержка")
+async def text_support_start(message: types.Message, state: FSMContext):
+    uid = message.from_user.id
+    active_msg_id = get_active_ticket_by_user(uid)
+    if active_msg_id:
+        await message.answer("⚠️ У тебя уже есть открытый тикет. Дождись ответа поддержки.")
+        return
+    await state.set_state(SupportStates.waiting_message)
+    await message.answer("🆘 Напиши одним сообщением свой вопрос для поддержки.")
+
 @router.callback_query(F.data == "main_menu")
 async def main(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.edit_text("Главное меню:", reply_markup=main_menu(call.from_user.id))
+    await call.message.answer(
+        "♠️ <b>Главное меню XLINE</b>\\nВыбери нужный раздел:",
+        parse_mode="HTML",
+        reply_markup=main_reply_menu(call.from_user.id)
+    )
     await call.answer()
 
 @router.callback_query(F.data == "profile")
