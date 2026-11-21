@@ -4,44 +4,44 @@ from .config import ADMIN_ID
 
 
 def main_reply_menu(user_id: int) -> ReplyKeyboardMarkup:
-    """Persistent chat menu inspired by the reference layout; no Mini App button."""
+    """Only the three persistent shortcuts shown at the bottom in the reference."""
     kb = ReplyKeyboardBuilder()
-    kb.button(text="⬇️ Пополнить")
-    kb.button(text="⬆️ Вывести")
-    kb.button(text="🎮 Играть")
-    kb.button(text="👤 Профиль")
-    kb.button(text="🎁 Бонусы")
-    kb.button(text="🤝 Рефералка")
-    kb.button(text="🧾 Чеки")
-    kb.button(text="⚙️ Настройки")
-    kb.button(text="📊 Топ")
-    kb.button(text="🎧 Поддержка")
-    kb.button(text="💸 $ с чата")
-    kb.button(text="📢 Канал")
-    kb.button(text="💬 Чат")
     kb.button(text="💳 Баланс")
+    kb.button(text="🎮 Играть")
     kb.button(text="☰ Меню")
-    if user_id == ADMIN_ID:
-        kb.button(text="👑 Админка")
-        kb.adjust(2, 1, 2, 2, 2, 2, 2, 3, 1)
-    else:
-        kb.adjust(2, 1, 2, 2, 2, 2, 2, 3)
+    kb.adjust(1, 1, 1)
     return kb.as_markup(
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Выбери раздел XLINE"
+        input_field_placeholder="Выбери действие"
     )
 
 
 def main_menu(user_id: int):
-    """Inline fallback menu for existing callback-based screens."""
+    """The large two-column section grid attached to the welcome message."""
     kb = InlineKeyboardBuilder()
-    kb.button(text="🎮 Играть", callback_data="menu_games")
-    kb.button(text="👤 Профиль", callback_data="profile")
-    kb.button(text="💳 Баланс", callback_data="menu_balance")
+    buttons = [
+        ("⬇️ Пополнить", "section_deposit"),
+        ("⬆️ Вывести", "section_withdraw"),
+        ("🎮 Играть", "menu_games"),
+        ("👤 Профиль", "profile"),
+        ("🎁 Бонусы", "section_bonus"),
+        ("🤝 Рефералка", "section_referral"),
+        ("🧾 Чеки", "section_receipts"),
+        ("⚙️ Настройки", "section_settings"),
+        ("📊 Топ", "section_top"),
+        ("🎧 Поддержка", "support"),
+        ("💸 $ с чата", "section_chat_rewards"),
+        ("📢 Канал", "section_channel"),
+        ("💬 Чат", "section_chat"),
+    ]
+    for label, callback in buttons:
+        kb.button(text=label, callback_data=callback)
     if user_id == ADMIN_ID:
         kb.button(text="👑 Админка", callback_data="admin_panel")
-    kb.adjust(2, 1)
+        kb.adjust(2, 1, 2, 2, 2, 2, 2, 1)
+    else:
+        kb.adjust(2, 1, 2, 2, 2, 2, 2)
     return kb.as_markup()
 
 
